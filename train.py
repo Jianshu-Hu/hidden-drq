@@ -150,7 +150,7 @@ class Workspace(object):
             if self.step >= self.cfg.num_seed_steps:
                 for _ in range(self.cfg.num_train_iters):
                     self.agent.update(self.replay_buffer, self.logger,
-                                      self.step)
+                                      self.step, self.cfg.regularization)
 
             next_obs, reward, done, info = self.env.step(action)
 
@@ -169,6 +169,8 @@ class Workspace(object):
 
 @hydra.main(config_path='config.yaml', strict=True)
 def main(cfg):
+    if cfg.regularization:
+        print('----------Train with hidden layer regularization-----------')
     from train import Workspace as W
     workspace = W(cfg)
     workspace.run()

@@ -147,6 +147,10 @@ class Critic(nn.Module):
 
         return q1, q2
 
+    def embedding(self, obs):
+        features = self.encoder(obs, detach=False)
+        return features
+
     def log(self, logger, step):
         self.encoder.log(logger, step)
 
@@ -217,8 +221,15 @@ class DRQAgent(object):
         assert action.ndim == 2 and action.shape[0] == 1
         return utils.to_np(action[0])
 
+    def cosine_similarity_loss(self, x, y):
+        x = F.normalize(x, dim=-1, p=2)
+        y = F.normalize(y, dim=-1, p=2)
+        similarity_loss = torch.mean(2 - 2 * (x * y).sum(dim=-1))
+
+        return similarity_loss
+
     def update_critic(self, obs, obs_aug, action, reward, next_obs,
-                      next_obs_aug, not_done, logger, step):
+                      next_obs_aug, not_done, logger, step, regularization):
         with torch.no_grad():
             dist = self.actor(next_obs)
             next_action = dist.rsample()
@@ -246,9 +257,20 @@ class DRQAgent(object):
             current_Q2, target_Q)
 
         Q1_aug, Q2_aug = self.critic(obs_aug, action)
-
         critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
             Q2_aug, target_Q)
+
+        # add regularization term for hidden layer output
+        if regularization:
+            with torch.no_grad():
+                features_target = self.critic_target.embedding(obs)
+                features_aug_target = self.critic_target.embedding(obs_aug)
+            features = self.critic.embedding(obs)
+            features_aug = self.critic.embedding(obs_aug)
+
+            similarity_loss = self.cosine_similarity_loss(features, features_aug_target) + \
+                              self.cosine_similarity_loss(features_aug, features_target)
+            critic_loss += similarity_loss
 
         logger.log('train_critic/loss', critic_loss, step)
 
@@ -290,14 +312,14 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-    def update(self, replay_buffer, logger, step):
+    def update(self, replay_buffer, logger, step, regularization):
         obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
             self.batch_size)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
         self.update_critic(obs, obs_aug, action, reward, next_obs,
-                           next_obs_aug, not_done, logger, step)
+                           next_obs_aug, not_done, logger, step, regularization)
 
         if step % self.actor_update_frequency == 0:
             self.update_actor_and_alpha(obs, logger, step)
