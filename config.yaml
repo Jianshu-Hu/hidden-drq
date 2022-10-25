@@ -1,3 +1,4 @@
+tag: test
 # env
 env: cartpole_swingup
 # IMPORTANT: if action_repeat is used the effective number of env steps needs to be
@@ -12,8 +13,10 @@ num_train_iters: 1
 num_seed_steps: 1000
 replay_buffer_capacity: 100000
 seed: 1
+# channel spatial attention module
+CBAM: false
 # hidden layer regularization
-regularization: False
+regularization: 0
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -73,6 +76,7 @@ encoder:
   params:
       obs_shape: ${agent.params.obs_shape}
       feature_dim: 50
+      add_attention_module: ${CBAM}
 
 
 # hydra configuration

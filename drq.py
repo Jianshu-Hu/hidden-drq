@@ -9,9 +9,56 @@ import utils
 import hydra
 
 
+class ChannelAttention(nn.Module):
+    def __init__(self, in_channels, reduction_ratio=16):
+        super().__init__()
+        self.avg_pool = nn.AdaptiveAvgPool2d(1)
+        self.max_pool = nn.AdaptiveMaxPool2d(1)
+
+        self.fc1 = nn.Conv2d(in_channels, in_channels//reduction_ratio, 1, bias=False)
+        self.relu1 = nn.ReLU()
+        self.fc2 = nn.Conv2d(in_channels//reduction_ratio, in_channels, 1, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = self.fc2(self.relu1(self.fc1(self.avg_pool(x))))
+        max_out = self.fc2(self.relu1(self.fc1(self.max_pool(x))))
+
+        out = avg_out + max_out
+        return self.sigmoid(out)
+
+
+class SpatialAttention(nn.Module):
+    def __init__(self, kernel_size=7):
+        super().__init__()
+        self.conv1 = nn.Conv2d(2, 1, kernel_size, padding=kernel_size//2, bias=False)
+        self.sigmoid = nn.Sigmoid()
+
+    def forward(self, x):
+        avg_out = torch.mean(x, dim=1, keepdim=True)
+        max_out, _ = torch.max(x, dim=1, keepdim=True)
+
+        x = torch.cat([avg_out, max_out], dim=1)
+        x = self.conv1(x)
+        return self.sigmoid(x)
+
+
+class CBAMBlock(nn.Module):
+    def __init__(self, in_channel, reduction=16, kernel_size=7):
+        super().__init__()
+        self.channel_attention = ChannelAttention(in_channels=in_channel, reduction_ratio=reduction)
+        self.spatial_attention = SpatialAttention(kernel_size=kernel_size)
+
+    def forward(self, x, weight=0.5):
+        residual = x
+        out = x*self.channel_attention(x)
+        out = out*self.spatial_attention(out)
+        return weight*out+(1-weight)*residual
+
+
 class Encoder(nn.Module):
     """Convolutional encoder for image-based observations."""
-    def __init__(self, obs_shape, feature_dim):
+    def __init__(self, obs_shape, feature_dim, add_attention_module):
         super().__init__()
 
         assert len(obs_shape) == 3
@@ -21,12 +68,17 @@ class Encoder(nn.Module):
         self.output_logits = False
         self.feature_dim = feature_dim
 
+        self.add_attention_module = add_attention_module
+
         self.convs = nn.ModuleList([
             nn.Conv2d(obs_shape[0], self.num_filters, 3, stride=2),
             nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
             nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
             nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1)
         ])
+
+        if self.add_attention_module:
+            self.CBAM = CBAMBlock(self.num_filters)
 
         self.head = nn.Sequential(
             nn.Linear(self.num_filters * 35 * 35, self.feature_dim),
@@ -44,6 +96,9 @@ class Encoder(nn.Module):
         for i in range(1, self.num_layers):
             conv = torch.relu(self.convs[i](conv))
             self.outputs['conv%s' % (i + 1)] = conv
+
+        if self.add_attention_module:
+            conv = self.CBAM(conv)
 
         h = conv.view(conv.size(0), -1)
         return h
@@ -230,6 +285,13 @@ class DRQAgent(object):
 
     def update_critic(self, obs, obs_aug, action, reward, next_obs,
                       next_obs_aug, not_done, logger, step, regularization):
+        # regularization:
+        # 0:SAC
+        # 1:SAC + drq
+        # 2:SAC + regularization
+        # 3:SAC + drq + regularization
+        if regularization >= 2:
+            print('----------Train with hidden layer regularization-----------')
         with torch.no_grad():
             dist = self.actor(next_obs)
             next_action = dist.rsample()
@@ -239,29 +301,31 @@ class DRQAgent(object):
                                  target_Q2) - self.alpha.detach() * log_prob
             target_Q = reward + (not_done * self.discount * target_V)
 
-            dist_aug = self.actor(next_obs_aug)
-            next_action_aug = dist_aug.rsample()
-            log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
-                                                                  keepdim=True)
-            target_Q1, target_Q2 = self.critic_target(next_obs_aug,
-                                                      next_action_aug)
-            target_V = torch.min(
-                target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
-            target_Q_aug = reward + (not_done * self.discount * target_V)
+            if regularization in {1, 3}:
+                dist_aug = self.actor(next_obs_aug)
+                next_action_aug = dist_aug.rsample()
+                log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
+                                                                      keepdim=True)
+                target_Q1, target_Q2 = self.critic_target(next_obs_aug,
+                                                          next_action_aug)
+                target_V = torch.min(
+                    target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
+                target_Q_aug = reward + (not_done * self.discount * target_V)
 
-            target_Q = (target_Q + target_Q_aug) / 2
+                target_Q = (target_Q + target_Q_aug) / 2
 
         # get current Q estimates
         current_Q1, current_Q2 = self.critic(obs, action)
         critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
             current_Q2, target_Q)
 
-        Q1_aug, Q2_aug = self.critic(obs_aug, action)
-        critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
-            Q2_aug, target_Q)
+        if regularization in {1, 3}:
+            Q1_aug, Q2_aug = self.critic(obs_aug, action)
+            critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
+                Q2_aug, target_Q)
 
         # add regularization term for hidden layer output
-        if regularization:
+        if regularization in {2, 3}:
             with torch.no_grad():
                 features_target = self.critic_target.embedding(obs)
                 features_aug_target = self.critic_target.embedding(obs_aug)

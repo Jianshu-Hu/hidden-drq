@@ -169,8 +169,6 @@ class Workspace(object):
 
 @hydra.main(config_path='config.yaml', strict=True)
 def main(cfg):
-    if cfg.regularization:
-        print('----------Train with hidden layer regularization-----------')
     from train import Workspace as W
     workspace = W(cfg)
     workspace.run()
