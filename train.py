@@ -18,6 +18,7 @@ from replay_buffer import ReplayBuffer
 from video import VideoRecorder
 
 torch.backends.cudnn.benchmark = True
+torch.backends.cudnn.deterministic = True
 
 
 def make_env(cfg):

@@ -186,6 +186,9 @@ class Critic(nn.Module):
         self.Q2 = utils.mlp(self.encoder.feature_dim + action_shape[0],
                             hidden_dim, 1, hidden_depth)
 
+        self.projector = utils.mlp(self.encoder.feature_dim, hidden_dim, 128, hidden_depth)
+        self.predictor = utils.mlp(128, hidden_dim, 128, hidden_depth)
+
         self.outputs = dict()
         self.apply(utils.weight_init)
 
@@ -205,6 +208,14 @@ class Critic(nn.Module):
     def embedding(self, obs):
         features = self.encoder(obs, detach=False)
         return features
+
+    def forward_projector(self, obs):
+        features = self.encoder(obs, detach=False)
+        return self.projector(features)
+
+    def forward_predictor(self, obs):
+        features = self.encoder(obs, detach=False)
+        return self.predictor(self.projector(features))
 
     def log(self, logger, step):
         self.encoder.log(logger, step)
@@ -290,8 +301,7 @@ class DRQAgent(object):
         # 1:SAC + drq
         # 2:SAC + regularization
         # 3:SAC + drq + regularization
-        if regularization >= 2:
-            print('----------Train with hidden layer regularization-----------')
+        # 4:SAC + BYOL regularization
         with torch.no_grad():
             dist = self.actor(next_obs)
             next_action = dist.rsample()
@@ -334,6 +344,17 @@ class DRQAgent(object):
 
             similarity_loss = self.cosine_similarity_loss(features, features_aug_target) + \
                               self.cosine_similarity_loss(features_aug, features_target)
+            critic_loss += similarity_loss
+        # add regularization similar with BYOL
+        if regularization == 4:
+            with torch.no_grad():
+                byol_target = self.critic_target.forward_projector(obs)
+                byol_aug_target = self.critic_target.forward_projector(obs_aug)
+            byol_prediction = self.critic.forward_predictor(obs)
+            byol_aug_prediction = self.critic.forward_predictor(obs_aug)
+
+            similarity_loss = self.cosine_similarity_loss(byol_prediction, byol_aug_target) + \
+                              self.cosine_similarity_loss(byol_aug_prediction, byol_target)
             critic_loss += similarity_loss
 
         logger.log('train_critic/loss', critic_loss, step)
