@@ -2,3 +2,5 @@ __pycache__/
 .ipynb_checkpoints/
 runs
 outputs
+saved_fig
+saved_runs
