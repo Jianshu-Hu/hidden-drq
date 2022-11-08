@@ -53,12 +53,21 @@ folders_1 = ['byol', 'drq', 'drq_with_attention', 'regularization']
 prefix_2 = 'saved_runs/cheetah/'
 folders_2 = ['drq', 'drq_attention', 'drq_attention_totally_refined']
 folders_3 = ['drq', 'regularization', 'regularization_l2_weight_1',
-             'regularization_l2_weight_05','regularization_l2_weight_15']
-folders_4 = ['drq', 'byol', 'simclr']
+             'regularization_l2_weight_05', 'regularization_l2_weight_15']
+folders_4 = ['drq', 'regularization_l2_weight_1', 'byol', 'simclr',
+             'regularization_l2_autoweight', 'byol_autoweight', 'simclr_autoweight']
 folders_5 = ['drq', 'attention_regularization', 'attention_regularization_all_cnn_layers']
 
+prefix_3 = 'saved_runs/reacher_hard/'
+folders_6 = ['drq', 'drq_attention_regularization']
+folders_7 = ['drq', 'regularization_l2_weight_1', 'byol', 'simclr']
+
 plot_several_folders(prefix=prefix_1, folders=folders_1, title='cartpole')
+
 plot_several_folders(prefix=prefix_2, folders=folders_2, title='cheetah_drq_attention')
 plot_several_folders(prefix=prefix_2, folders=folders_3, title='cheetah_normalization')
 plot_several_folders(prefix=prefix_2, folders=folders_4, title='cheetah_ssl')
 plot_several_folders(prefix=prefix_2, folders=folders_5, title='cheetah_attention_regularization')
+
+plot_several_folders(prefix=prefix_3, folders=folders_6, title='reacher_hard_attention_regularization')
+plot_several_folders(prefix=prefix_3, folders=folders_7, title='reacher_hard_ssl')

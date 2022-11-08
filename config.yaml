@@ -13,10 +13,14 @@ num_train_iters: 1
 num_seed_steps: 1000
 replay_buffer_capacity: 100000
 seed: 1
+
 # channel spatial attention module
 CBAM: false
 # hidden layer regularization
 regularization: 0
+# hidden dim
+hidden_dim: 1024
+
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -59,7 +63,7 @@ critic:
   params:
     encoder_cfg: ${agent.params.encoder_cfg}
     action_shape: ${agent.params.action_shape}
-    hidden_dim: 1024
+    hidden_dim: ${hidden_dim}
     hidden_depth: 2
 
 actor:
@@ -68,7 +72,7 @@ actor:
     encoder_cfg: ${agent.params.encoder_cfg}
     action_shape: ${agent.params.action_shape}
     hidden_depth: 2
-    hidden_dim: 1024
+    hidden_dim: ${hidden_dim}
     log_std_bounds: [-10, 2]
 
 encoder:

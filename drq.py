@@ -103,6 +103,9 @@ class Encoder(nn.Module):
                 conv = self.CBAMs[i-1](conv)
             self.outputs['conv%s' % (i + 1)] = conv
 
+        # if with_attention_module:
+        #     conv = self.CBAMs[self.num_layers - 2](conv)
+
         h = conv.view(conv.size(0), -1)
         return h
 
@@ -273,6 +276,9 @@ class DRQAgent(object):
         self.critic_target.train()
 
         self.simclr_criterion = SupConLoss(temperature=0.5)
+        self.mse = nn.MSELoss()
+        # record the max Q error so far for calculating the weight for regularization term
+        self.max_q_error = 0
 
     def train(self, training=True):
         self.training = training
@@ -305,7 +311,7 @@ class DRQAgent(object):
         # 0:SAC
         # 1:SAC + drq
         # 2:SAC + regularization
-        # 3:SAC + drq + regularization
+
         # 4:SAC + BYOL regularization
         # 5:SAC + attention regularization
         # 6:SAC + SimCLR
@@ -318,7 +324,7 @@ class DRQAgent(object):
                                  target_Q2) - self.alpha.detach() * log_prob
             target_Q = reward + (not_done * self.discount * target_V)
 
-            if regularization in {1, 3}:
+            if regularization in {1}:
                 dist_aug = self.actor(next_obs_aug)
                 next_action_aug = dist_aug.rsample()
                 log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
@@ -348,7 +354,7 @@ class DRQAgent(object):
         critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
             current_Q2, target_Q)
 
-        if regularization in {1, 3}:
+        if regularization in {1}:
             Q1_aug, Q2_aug = self.critic(obs_aug, action)
             critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
                 Q2_aug, target_Q)
@@ -360,34 +366,63 @@ class DRQAgent(object):
                 Q2_aug, target_Q)
 
         # add regularization term for hidden layer output
-        if regularization in {2, 3}:
+        if regularization in {2}:
             with torch.no_grad():
                 features_target = self.critic_target.embedding(obs)
                 features_aug_target = self.critic_target.embedding(obs_aug)
+                lambda_weight = 1.0
+                # # calculate the weight for regularization
+                # Q1, Q2 = self.critic.forward(obs, action)
+                # Q = torch.min(Q1, Q2)
+                # Q1_aug, Q2_aug = self.critic.forward(obs_aug, action)
+                # Q_aug = torch.min(Q1_aug, Q2_aug)
+                # Q_error = self.mse(Q, Q_aug)
+                # if Q_error > self.max_q_error:
+                #     self.max_q_error = Q_error
+                # lambda_weight = 1.0*Q_error/self.max_q_error
             features = self.critic.embedding(obs)
             features_aug = self.critic.embedding(obs_aug)
 
             # similarity_loss = self.cosine_similarity_loss(features, features_aug_target) + \
             #                   self.cosine_similarity_loss(features_aug, features_target)
             # critic_loss += similarity_loss
-            loss = nn.MSELoss()
-            lambda_weight = 1.0
-            l2_loss = loss(features, features_aug_target) + loss(features_aug, features_target)
+            l2_loss = self.mse(features, features_aug_target) + self.mse(features_aug, features_target)
             critic_loss += lambda_weight*l2_loss
         # add regularization similar with BYOL
         if regularization == 4:
             with torch.no_grad():
                 byol_target = self.critic_target.forward_projector(obs)
                 byol_aug_target = self.critic_target.forward_projector(obs_aug)
+                lambda_weight = 1.0
+                # # calculate the weight for regularization
+                # Q1, Q2 = self.critic.forward(obs, action)
+                # Q = torch.min(Q1, Q2)
+                # Q1_aug, Q2_aug = self.critic.forward(obs_aug, action)
+                # Q_aug = torch.min(Q1_aug, Q2_aug)
+                # Q_error = self.mse(Q, Q_aug)
+                # if Q_error > self.max_q_error:
+                #     self.max_q_error = Q_error
+                # lambda_weight = 1.0*Q_error/self.max_q_error
             byol_prediction = self.critic.forward_predictor(obs)
             byol_aug_prediction = self.critic.forward_predictor(obs_aug)
 
             similarity_loss = self.cosine_similarity_loss(byol_prediction, byol_aug_target) + \
                               self.cosine_similarity_loss(byol_aug_prediction, byol_target)
-            critic_loss += similarity_loss
+            critic_loss += lambda_weight*similarity_loss
 
         # add regularization similar to SimCLR
         if regularization == 6:
+            with torch.no_grad():
+                lambda_weight = 0.1
+                # # calculate the weight for regularization
+                # Q1, Q2 = self.critic.forward(obs, action)
+                # Q = torch.min(Q1, Q2)
+                # Q1_aug, Q2_aug = self.critic.forward(obs_aug, action)
+                # Q_aug = torch.min(Q1_aug, Q2_aug)
+                # Q_error = self.mse(Q, Q_aug)
+                # if Q_error > self.max_q_error:
+                #     self.max_q_error = Q_error
+                # lambda_weight = 0.1*Q_error/self.max_q_error
             proj1 = F.normalize(self.critic.forward_projector(obs), dim=-1)
             proj2 = F.normalize(self.critic.forward_projector(obs_aug), dim=-1)
 
@@ -396,7 +431,7 @@ class DRQAgent(object):
             # better be L2 normalized in f_dim dimension
             features = torch.cat((torch.unsqueeze(proj1, dim=1), torch.unsqueeze(proj2, dim=1)), dim=1)
             contrastive_loss = self.simclr_criterion(features)
-            critic_loss += 0.1*contrastive_loss
+            critic_loss += lambda_weight*contrastive_loss
 
         logger.log('train_critic/loss', critic_loss, step)
 
