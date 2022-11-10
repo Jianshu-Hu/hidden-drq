@@ -4,6 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 import math
+import random
 
 import utils
 import hydra
@@ -49,11 +50,12 @@ class CBAMBlock(nn.Module):
         self.channel_attention = ChannelAttention(in_channels=in_channel, reduction_ratio=reduction)
         self.spatial_attention = SpatialAttention(kernel_size=kernel_size)
 
-    def forward(self, x, weight=1.0):
+    def forward(self, x):
         residual = x
         out = x*self.channel_attention(x)
         out = out*self.spatial_attention(out)
-        return weight*out+(1-weight)*residual
+        weight = random.random()
+        return (1-weight)*out+residual
 
 
 class Encoder(nn.Module):
@@ -99,12 +101,12 @@ class Encoder(nn.Module):
 
         for i in range(1, self.num_layers):
             conv = torch.relu(self.convs[i](conv))
-            if with_attention_module:
-                conv = self.CBAMs[i-1](conv)
+            # if with_attention_module:
+            #     conv = self.CBAMs[i-1](conv)
             self.outputs['conv%s' % (i + 1)] = conv
 
-        # if with_attention_module:
-        #     conv = self.CBAMs[self.num_layers - 2](conv)
+        if with_attention_module:
+            conv = self.CBAMs[self.num_layers - 2](conv)
 
         h = conv.view(conv.size(0), -1)
         return h
@@ -473,9 +475,9 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-    def update(self, replay_buffer, logger, step, regularization):
+    def update(self, replay_buffer, logger, step, regularization, CBAM):
         obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
-            self.batch_size)
+            self.batch_size, CBAM)
 
         logger.log('train/batch_reward', reward.mean(), step)
 

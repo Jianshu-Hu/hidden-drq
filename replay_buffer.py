@@ -41,7 +41,7 @@ class ReplayBuffer(object):
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
-    def sample(self, batch_size):
+    def sample(self, batch_size, CBAM=False):
         idxs = np.random.randint(0,
                                  self.capacity if self.full else self.idx,
                                  size=batch_size)
@@ -61,8 +61,9 @@ class ReplayBuffer(object):
         not_dones_no_max = torch.as_tensor(self.not_dones_no_max[idxs],
                                            device=self.device)
 
-        obses = self.aug_trans(obses)
-        next_obses = self.aug_trans(next_obses)
+        if not CBAM:
+            obses = self.aug_trans(obses)
+            next_obses = self.aug_trans(next_obses)
 
         obses_aug = self.aug_trans(obses_aug)
         next_obses_aug = self.aug_trans(next_obses_aug)
