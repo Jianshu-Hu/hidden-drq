@@ -81,6 +81,7 @@ encoder:
       obs_shape: ${agent.params.obs_shape}
       feature_dim: 50
       add_attention_module: ${CBAM}
+      image_pad: ${image_pad}
 
 
 # hydra configuration

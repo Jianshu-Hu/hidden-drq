@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=attention_regularization_all_layers_random_weight
+tag=attention_actor_critic_share_obs_spatial_weight_1_aug_after_spatial
 seed=1
 
 echo "start running $tag with seed $seed"

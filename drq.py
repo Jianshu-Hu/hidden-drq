@@ -5,6 +5,9 @@ import torch.nn.functional as F
 import copy
 import math
 import random
+import kornia
+
+from torchvision.utils import save_image
 
 import utils
 import hydra
@@ -45,22 +48,28 @@ class SpatialAttention(nn.Module):
 
 
 class CBAMBlock(nn.Module):
-    def __init__(self, in_channel, reduction=16, kernel_size=7):
+    def __init__(self, in_channel, reduction=16, kernel_size=7, only_spatial=False):
         super().__init__()
-        self.channel_attention = ChannelAttention(in_channels=in_channel, reduction_ratio=reduction)
+        self.only_spatial = only_spatial
+        if not only_spatial:
+            self.channel_attention = ChannelAttention(in_channels=in_channel, reduction_ratio=reduction)
         self.spatial_attention = SpatialAttention(kernel_size=kernel_size)
 
     def forward(self, x):
         residual = x
-        out = x*self.channel_attention(x)
-        out = out*self.spatial_attention(out)
+        if self.only_spatial:
+            out = x * self.spatial_attention(x)
+        else:
+            out = x*self.channel_attention(x)
+            out = out*self.spatial_attention(out)
         weight = random.random()
-        return (1-weight)*out+residual
+        # return (1-weight)*out+weight*residual
+        return out
 
 
 class Encoder(nn.Module):
     """Convolutional encoder for image-based observations."""
-    def __init__(self, obs_shape, feature_dim, add_attention_module):
+    def __init__(self, obs_shape, feature_dim, add_attention_module, image_pad):
         super().__init__()
 
         assert len(obs_shape) == 3
@@ -70,8 +79,6 @@ class Encoder(nn.Module):
         self.output_logits = False
         self.feature_dim = feature_dim
 
-        self.add_attention_module = add_attention_module
-
         self.convs = nn.ModuleList([
             nn.Conv2d(obs_shape[0], self.num_filters, 3, stride=2),
             nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
@@ -79,12 +86,19 @@ class Encoder(nn.Module):
             nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1)
         ])
 
+        self.add_attention_module = add_attention_module
+
         if self.add_attention_module:
             self.CBAMs = nn.ModuleList([
+                CBAMBlock(obs_shape[0], only_spatial=True),
+                CBAMBlock(self.num_filters),
                 CBAMBlock(self.num_filters),
                 CBAMBlock(self.num_filters),
                 CBAMBlock(self.num_filters)
             ])
+            self.aug_trans = nn.Sequential(
+                nn.ReplicationPad2d(image_pad),
+                kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
 
         self.head = nn.Sequential(
             nn.Linear(self.num_filters * 35 * 35, self.feature_dim),
@@ -92,9 +106,18 @@ class Encoder(nn.Module):
 
         self.outputs = dict()
 
-    def forward_conv(self, obs, with_attention_module=False):
+    def forward_conv(self, obs, with_aug=False):
         obs = obs / 255.
         self.outputs['obs'] = obs
+        # a = obs[:, 3:6, :, :]
+        # save_image(a, '/bigdata/users/jhu/hidden-drq/outputs/original.png')
+        # use spatial attention module to process obs
+        if self.add_attention_module:
+            obs = self.CBAMs[0](obs)
+            # a = obs[:, 3:6, :, :]
+            # save_image(a, '/bigdata/users/jhu/hidden-drq/outputs/new.png')
+            if with_aug:
+                obs = self.aug_trans(obs)
 
         conv = torch.relu(self.convs[0](obs))
         self.outputs['conv1'] = conv
@@ -105,14 +128,14 @@ class Encoder(nn.Module):
             #     conv = self.CBAMs[i-1](conv)
             self.outputs['conv%s' % (i + 1)] = conv
 
-        if with_attention_module:
-            conv = self.CBAMs[self.num_layers - 2](conv)
+        # if with_attention_module:
+        # conv = self.CBAMs[-1](conv)
 
         h = conv.view(conv.size(0), -1)
         return h
 
-    def forward(self, obs, detach=False, with_attention_module=False):
-        h = self.forward_conv(obs, with_attention_module)
+    def forward(self, obs, detach=False, with_aug=False):
+        h = self.forward_conv(obs, with_aug)
 
         if detach:
             h = h.detach()
@@ -200,9 +223,9 @@ class Critic(nn.Module):
         self.outputs = dict()
         self.apply(utils.weight_init)
 
-    def forward(self, obs, action, detach_encoder=False, with_attention_module=False):
+    def forward(self, obs, action, detach_encoder=False, with_aug=False):
         assert obs.size(0) == action.size(0)
-        obs = self.encoder(obs, detach=detach_encoder, with_attention_module=with_attention_module)
+        obs = self.encoder(obs, detach=detach_encoder, with_aug=with_aug)
 
         obs_action = torch.cat([obs, action], dim=-1)
         q1 = self.Q1(obs_action)
@@ -343,8 +366,7 @@ class DRQAgent(object):
                 next_action_aug = dist_aug.rsample()
                 log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
                                                                       keepdim=True)
-                target_Q1, target_Q2 = self.critic_target.forward(next_obs,
-                                                          next_action_aug, with_attention_module=True)
+                target_Q1, target_Q2 = self.critic_target.forward(next_obs, next_action_aug, with_aug=True)
                 target_V = torch.min(
                     target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
                 target_Q_aug = reward + (not_done * self.discount * target_V)
@@ -363,7 +385,7 @@ class DRQAgent(object):
 
         # use attention for creating augmentation
         if regularization in {5}:
-            Q1_aug, Q2_aug = self.critic.forward(obs, action, with_attention_module=True)
+            Q1_aug, Q2_aug = self.critic.forward(obs, action, with_aug=True)
             critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
                 Q2_aug, target_Q)
 
@@ -372,6 +394,7 @@ class DRQAgent(object):
             with torch.no_grad():
                 features_target = self.critic_target.embedding(obs)
                 features_aug_target = self.critic_target.embedding(obs_aug)
+                averaged_target = (features_target + features_aug_target)/2
                 lambda_weight = 1.0
                 # # calculate the weight for regularization
                 # Q1, Q2 = self.critic.forward(obs, action)
@@ -388,7 +411,7 @@ class DRQAgent(object):
             # similarity_loss = self.cosine_similarity_loss(features, features_aug_target) + \
             #                   self.cosine_similarity_loss(features_aug, features_target)
             # critic_loss += similarity_loss
-            l2_loss = self.mse(features, features_aug_target) + self.mse(features_aug, features_target)
+            l2_loss = self.mse(features, averaged_target) + self.mse(features_aug, averaged_target)
             critic_loss += lambda_weight*l2_loss
         # add regularization similar with BYOL
         if regularization == 4:
@@ -425,13 +448,13 @@ class DRQAgent(object):
                 # if Q_error > self.max_q_error:
                 #     self.max_q_error = Q_error
                 # lambda_weight = 0.1*Q_error/self.max_q_error
-            proj1 = F.normalize(self.critic.forward_projector(obs), dim=-1)
-            proj2 = F.normalize(self.critic.forward_projector(obs_aug), dim=-1)
+            features1 = F.normalize(self.critic.embedding(obs), dim=-1)
+            features2 = F.normalize(self.critic.embedding(obs_aug), dim=-1)
 
             # features: [bsz, n_views, f_dim]
             # `n_views` is the number of crops from each image
             # better be L2 normalized in f_dim dimension
-            features = torch.cat((torch.unsqueeze(proj1, dim=1), torch.unsqueeze(proj2, dim=1)), dim=1)
+            features = torch.cat((torch.unsqueeze(features1, dim=1), torch.unsqueeze(features2, dim=1)), dim=1)
             contrastive_loss = self.simclr_criterion(features)
             critic_loss += lambda_weight*contrastive_loss
 
@@ -441,6 +464,10 @@ class DRQAgent(object):
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
+
+        if regularization in {5}:
+            # update attention module in actor
+            utils.soft_update_params(self.critic.encoder.CBAMs, self.actor.encoder.CBAMs, tau=1)
 
         self.critic.log(logger, step)
 

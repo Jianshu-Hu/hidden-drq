@@ -57,11 +57,18 @@ folders_3 = ['drq', 'regularization', 'regularization_l2_weight_1',
 folders_4 = ['drq', 'regularization_l2_weight_1', 'byol', 'simclr',
              'regularization_l2_autoweight', 'byol_autoweight', 'simclr_autoweight']
 folders_5 = ['drq', 'attention_regularization', 'attention_regularization_all_cnn_layers']
-folders_8 = ['drq', 'regularization_l2_weight_1', 'regularization_l2_hidden_dim_512']
+folders_8 = ['drq', 'regularization_l2_weight_1', 'regularization_l2_hidden_dim_512',
+             'regularization_l2_averaged_target', 'regularization_contra_loss']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
-             'attention_regularization_last_layer_random_weight', 'attention_regularization_all_layers_random_weight']
+             'attention_regularization_last_layer_random_weight', 'attention_regularization_all_layers_random_weight',
+             'attention_actor_critic_share_last_layer_random_weight',
+             'attention_actor_critic_share_obs_spatial_weight_1_aug_after_spatial']
+folders_12 = ['drq', 'attention_regularization_last_layer_random_weight_no_original_aug',
+              'attention_spatial_obs_random_weight_no_original_aug',
+              'attention_actor_critic_share_last_layer_random_weight_no_original_aug',
+              'attention_actor_critic_share_obs_spatial_random_weight_no_original_aug']
 folders_7 = ['drq', 'regularization_l2_weight_1', 'byol', 'simclr']
 
 prefix_4 = 'saved_runs/walker_walk/'
@@ -81,12 +88,15 @@ folders_11 = ['drq', 'attention_regularization_last_layer']
 
 # 11.14
 plot_several_folders(prefix=prefix_2, folders=folders_5, title='cheetah_attention_regularization')
-plot_several_folders(prefix=prefix_2, folders=folders_8, title='cheetah_regularization')
 
 plot_several_folders(prefix=prefix_3, folders=folders_6, title='reacher_hard_attention_regularization')
+plot_several_folders(prefix=prefix_3, folders=folders_12, title='reacher_hard_attention_no_aug')
 plot_several_folders(prefix=prefix_3, folders=folders_7, title='reacher_hard_ssl')
 
 plot_several_folders(prefix=prefix_4, folders=folders_9, title='walker_walk_attention_regularization')
 plot_several_folders(prefix=prefix_4, folders=folders_10, title='walker_walk_regularization')
 
 plot_several_folders(prefix=prefix_5, folders=folders_11, title='pendulum_attention_regularization')
+
+# 11.21
+plot_several_folders(prefix=prefix_2, folders=folders_8, title='cheetah_regularization')

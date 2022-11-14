@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=simclr_autoweight
+tag=regularization_contra_loss
 seed=1
 
 echo "start running $tag with seed $seed"
