@@ -302,6 +302,7 @@ class DRQAgent(object):
 
         self.simclr_criterion = SupConLoss(temperature=0.5)
         self.mse = nn.MSELoss()
+        self.smooth_l1_loss = nn.SmoothL1Loss()
         # record the max Q error so far for calculating the weight for regularization term
         self.max_q_error = 0
 
@@ -331,15 +332,18 @@ class DRQAgent(object):
         return similarity_loss
 
     def update_critic(self, obs, obs_aug, action, reward, next_obs,
-                      next_obs_aug, not_done, logger, step, regularization):
+                      next_obs_aug, not_done, logger, step, regularization, weight):
         # regularization:
         # 0:SAC
         # 1:SAC + drq
-        # 2:SAC + regularization
-
+        # 2:SAC + l2 regularization
+        # 3:SAC + smooth l1 regularization
         # 4:SAC + BYOL regularization
         # 5:SAC + attention regularization
         # 6:SAC + SimCLR
+        # 7:SAC + drq + Contrastive loss
+        # 8:SAC + drq + l2 regularization
+        # 9:SAC + drq + smooth l1 regularization
         with torch.no_grad():
             dist = self.actor(next_obs)
             next_action = dist.rsample()
@@ -349,7 +353,7 @@ class DRQAgent(object):
                                  target_Q2) - self.alpha.detach() * log_prob
             target_Q = reward + (not_done * self.discount * target_V)
 
-            if regularization in {1}:
+            if regularization in {1, 7, 8, 9}:
                 dist_aug = self.actor(next_obs_aug)
                 next_action_aug = dist_aug.rsample()
                 log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
@@ -378,7 +382,7 @@ class DRQAgent(object):
         critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
             current_Q2, target_Q)
 
-        if regularization in {1}:
+        if regularization in {1, 7, 8, 9}:
             Q1_aug, Q2_aug = self.critic(obs_aug, action)
             critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
                 Q2_aug, target_Q)
@@ -390,64 +394,46 @@ class DRQAgent(object):
                 Q2_aug, target_Q)
 
         # add regularization term for hidden layer output
-        if regularization in {2}:
-            with torch.no_grad():
-                features_target = self.critic_target.embedding(obs)
-                features_aug_target = self.critic_target.embedding(obs_aug)
-                averaged_target = (features_target + features_aug_target)/2
-                lambda_weight = 1.0
-                # # calculate the weight for regularization
-                # Q1, Q2 = self.critic.forward(obs, action)
-                # Q = torch.min(Q1, Q2)
-                # Q1_aug, Q2_aug = self.critic.forward(obs_aug, action)
-                # Q_aug = torch.min(Q1_aug, Q2_aug)
-                # Q_error = self.mse(Q, Q_aug)
-                # if Q_error > self.max_q_error:
-                #     self.max_q_error = Q_error
-                # lambda_weight = 1.0*Q_error/self.max_q_error
-            features = self.critic.embedding(obs)
-            features_aug = self.critic.embedding(obs_aug)
+        if regularization in {2, 3, 8, 9}:
+            if regularization in {2, 8}:
+                with torch.no_grad():
+                    features_target = self.critic_target.embedding(obs)
+                    features_aug_target = self.critic_target.embedding(obs_aug)
+                    # weight = 1.0
+                features = self.critic.embedding(obs)
+                features_aug = self.critic.embedding(obs_aug)
 
-            # similarity_loss = self.cosine_similarity_loss(features, features_aug_target) + \
-            #                   self.cosine_similarity_loss(features_aug, features_target)
-            # critic_loss += similarity_loss
-            l2_loss = self.mse(features, averaged_target) + self.mse(features_aug, averaged_target)
-            critic_loss += lambda_weight*l2_loss
+                # similarity_loss = self.cosine_similarity_loss(features, features_aug_target) + \
+                #                   self.cosine_similarity_loss(features_aug, features_target)
+                # critic_loss += similarity_loss
+                regularization_loss = self.mse(features, features_aug_target) \
+                          + self.mse(features_aug, features_target)
+            if regularization in {3, 9}:
+                with torch.no_grad():
+                    features_target = self.critic_target.embedding(obs)
+                    features_aug_target = self.critic_target.embedding(obs_aug)
+                    averaged_target = (features_target + features_aug_target)/2
+                    # weight = 0.5
+                features = self.critic.embedding(obs)
+                features_aug = self.critic.embedding(obs_aug)
+
+                regularization_loss = self.smooth_l1_loss(features, averaged_target) \
+                          + self.smooth_l1_loss(features_aug, averaged_target)
+            critic_loss += weight*regularization_loss
         # add regularization similar with BYOL
         if regularization == 4:
             with torch.no_grad():
                 byol_target = self.critic_target.forward_projector(obs)
                 byol_aug_target = self.critic_target.forward_projector(obs_aug)
-                lambda_weight = 1.0
-                # # calculate the weight for regularization
-                # Q1, Q2 = self.critic.forward(obs, action)
-                # Q = torch.min(Q1, Q2)
-                # Q1_aug, Q2_aug = self.critic.forward(obs_aug, action)
-                # Q_aug = torch.min(Q1_aug, Q2_aug)
-                # Q_error = self.mse(Q, Q_aug)
-                # if Q_error > self.max_q_error:
-                #     self.max_q_error = Q_error
-                # lambda_weight = 1.0*Q_error/self.max_q_error
             byol_prediction = self.critic.forward_predictor(obs)
             byol_aug_prediction = self.critic.forward_predictor(obs_aug)
 
             similarity_loss = self.cosine_similarity_loss(byol_prediction, byol_aug_target) + \
                               self.cosine_similarity_loss(byol_aug_prediction, byol_target)
-            critic_loss += lambda_weight*similarity_loss
+            critic_loss += weight*similarity_loss
 
         # add regularization similar to SimCLR
-        if regularization == 6:
-            with torch.no_grad():
-                lambda_weight = 0.1
-                # # calculate the weight for regularization
-                # Q1, Q2 = self.critic.forward(obs, action)
-                # Q = torch.min(Q1, Q2)
-                # Q1_aug, Q2_aug = self.critic.forward(obs_aug, action)
-                # Q_aug = torch.min(Q1_aug, Q2_aug)
-                # Q_error = self.mse(Q, Q_aug)
-                # if Q_error > self.max_q_error:
-                #     self.max_q_error = Q_error
-                # lambda_weight = 0.1*Q_error/self.max_q_error
+        if regularization in {6, 7}:
             features1 = F.normalize(self.critic.embedding(obs), dim=-1)
             features2 = F.normalize(self.critic.embedding(obs_aug), dim=-1)
 
@@ -456,7 +442,7 @@ class DRQAgent(object):
             # better be L2 normalized in f_dim dimension
             features = torch.cat((torch.unsqueeze(features1, dim=1), torch.unsqueeze(features2, dim=1)), dim=1)
             contrastive_loss = self.simclr_criterion(features)
-            critic_loss += lambda_weight*contrastive_loss
+            critic_loss += weight*contrastive_loss
 
         logger.log('train_critic/loss', critic_loss, step)
 
@@ -502,14 +488,14 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-    def update(self, replay_buffer, logger, step, regularization, CBAM):
+    def update(self, replay_buffer, logger, step, regularization, weight, CBAM):
         obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
             self.batch_size, CBAM)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
         self.update_critic(obs, obs_aug, action, reward, next_obs,
-                           next_obs_aug, not_done, logger, step, regularization)
+                           next_obs_aug, not_done, logger, step, regularization, weight)
 
         if step % self.actor_update_frequency == 0:
             self.update_actor_and_alpha(obs, logger, step)

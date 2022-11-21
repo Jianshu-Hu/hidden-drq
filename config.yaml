@@ -18,6 +18,8 @@ seed: 1
 CBAM: false
 # hidden layer regularization
 regularization: 0
+# weight for regularization loss
+weight: 0
 # hidden dim
 hidden_dim: 1024
 
