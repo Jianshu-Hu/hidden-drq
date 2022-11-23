@@ -178,8 +178,9 @@ class Actor(nn.Module):
         self.outputs = dict()
         self.apply(utils.weight_init)
 
-    def forward(self, obs, detach_encoder=False):
-        obs = self.encoder(obs, detach=detach_encoder)
+    def forward(self, obs, detach_encoder=False, with_embedding=False):
+        if not with_embedding:
+            obs = self.encoder(obs, detach=detach_encoder)
 
         mu, log_std = self.trunk(obs).chunk(2, dim=-1)
 
@@ -223,9 +224,10 @@ class Critic(nn.Module):
         self.outputs = dict()
         self.apply(utils.weight_init)
 
-    def forward(self, obs, action, detach_encoder=False, with_aug=False):
+    def forward(self, obs, action, detach_encoder=False, with_aug=False, with_embedding=False):
         assert obs.size(0) == action.size(0)
-        obs = self.encoder(obs, detach=detach_encoder, with_aug=with_aug)
+        if not with_embedding:
+            obs = self.encoder(obs, detach=detach_encoder, with_aug=with_aug)
 
         obs_action = torch.cat([obs, action], dim=-1)
         q1 = self.Q1(obs_action)
@@ -235,10 +237,6 @@ class Critic(nn.Module):
         self.outputs['q2'] = q2
 
         return q1, q2
-
-    def embedding(self, obs):
-        features = self.encoder(obs, detach=False)
-        return features
 
     def forward_projector(self, obs):
         features = self.encoder(obs, detach=False)
@@ -267,7 +265,7 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size):
+                 critic_target_update_frequency, batch_size, init_weight, target_rl):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -297,14 +295,20 @@ class DRQAgent(object):
                                                  lr=lr)
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=lr)
 
-        self.train()
-        self.critic_target.train()
-
+        # regularization loss
         self.simclr_criterion = SupConLoss(temperature=0.5)
         self.mse = nn.MSELoss()
         self.smooth_l1_loss = nn.SmoothL1Loss()
-        # record the max Q error so far for calculating the weight for regularization term
-        self.max_q_error = 0
+        # regularization weight
+        self.weight = torch.tensor(init_weight).to(device)
+        self.weight.requires_grad = True
+        self.regularization_loss = target_rl
+        self.target_regularization_loss = target_rl
+        self.rl_weight_optimizer = torch.optim.Adam([self.weight], lr=lr)
+
+        self.train()
+        self.critic_target.train()
+
 
     def train(self, training=True):
         self.training = training
@@ -332,7 +336,7 @@ class DRQAgent(object):
         return similarity_loss
 
     def update_critic(self, obs, obs_aug, action, reward, next_obs,
-                      next_obs_aug, not_done, logger, step, regularization, weight):
+                      next_obs_aug, not_done, logger, step, regularization):
         # regularization:
         # 0:SAC
         # 1:SAC + drq
@@ -344,14 +348,27 @@ class DRQAgent(object):
         # 7:SAC + drq + Contrastive loss
         # 8:SAC + drq + l2 regularization
         # 9:SAC + drq + smooth l1 regularization
+        # 10:SAC + averaged embedding + contrastive loss
         with torch.no_grad():
-            dist = self.actor(next_obs)
-            next_action = dist.rsample()
-            log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
-            target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
-            target_V = torch.min(target_Q1,
-                                 target_Q2) - self.alpha.detach() * log_prob
-            target_Q = reward + (not_done * self.discount * target_V)
+            if regularization == 10:
+                embedding = self.actor.encoder(next_obs)
+                embedding_aug = self.actor.encoder(next_obs_aug)
+                averaged_embedding = (embedding+embedding_aug)/2
+                dist = self.actor(averaged_embedding, with_embedding=True)
+                next_action = dist.rsample()
+                log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+                target_Q1, target_Q2 = self.critic_target(averaged_embedding, next_action, with_embedding=True)
+                target_V = torch.min(target_Q1,
+                                     target_Q2) - self.alpha.detach() * log_prob
+                target_Q = reward + (not_done * self.discount * target_V)
+            else:
+                dist = self.actor(next_obs)
+                next_action = dist.rsample()
+                log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+                target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
+                target_V = torch.min(target_Q1,
+                                     target_Q2) - self.alpha.detach() * log_prob
+                target_Q = reward + (not_done * self.discount * target_V)
 
             if regularization in {1, 7, 8, 9}:
                 dist_aug = self.actor(next_obs_aug)
@@ -378,9 +395,17 @@ class DRQAgent(object):
                 target_Q = (target_Q + target_Q_aug) / 2
 
         # get current Q estimates
-        current_Q1, current_Q2 = self.critic(obs, action)
-        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-            current_Q2, target_Q)
+        if regularization == 10:
+            embedding = self.critic.encoder(obs)
+            embedding_aug = self.critic.encoder(obs_aug)
+            averaged_embedding = (embedding+embedding_aug)/2
+            current_Q1, current_Q2 = self.critic(averaged_embedding, action, with_embedding=True)
+            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
+                current_Q2, target_Q)
+        else:
+            current_Q1, current_Q2 = self.critic(obs, action)
+            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
+                current_Q2, target_Q)
 
         if regularization in {1, 7, 8, 9}:
             Q1_aug, Q2_aug = self.critic(obs_aug, action)
@@ -397,11 +422,10 @@ class DRQAgent(object):
         if regularization in {2, 3, 8, 9}:
             if regularization in {2, 8}:
                 with torch.no_grad():
-                    features_target = self.critic_target.embedding(obs)
-                    features_aug_target = self.critic_target.embedding(obs_aug)
-                    # weight = 1.0
-                features = self.critic.embedding(obs)
-                features_aug = self.critic.embedding(obs_aug)
+                    features_target = self.critic_target.encoder(obs)
+                    features_aug_target = self.critic_target.encoder(obs_aug)
+                features = self.critic.encoder(obs)
+                features_aug = self.critic.encoder(obs_aug)
 
                 # similarity_loss = self.cosine_similarity_loss(features, features_aug_target) + \
                 #                   self.cosine_similarity_loss(features_aug, features_target)
@@ -410,16 +434,16 @@ class DRQAgent(object):
                           + self.mse(features_aug, features_target)
             if regularization in {3, 9}:
                 with torch.no_grad():
-                    features_target = self.critic_target.embedding(obs)
-                    features_aug_target = self.critic_target.embedding(obs_aug)
+                    features_target = self.critic_target.encoder(obs)
+                    features_aug_target = self.critic_target.encoder(obs_aug)
                     averaged_target = (features_target + features_aug_target)/2
-                    # weight = 0.5
-                features = self.critic.embedding(obs)
-                features_aug = self.critic.embedding(obs_aug)
+                features = self.critic.encoder(obs)
+                features_aug = self.critic.encoder(obs_aug)
 
                 regularization_loss = self.smooth_l1_loss(features, averaged_target) \
                           + self.smooth_l1_loss(features_aug, averaged_target)
-            critic_loss += weight*regularization_loss
+            self.regularization_loss = regularization_loss.item()
+            critic_loss += self.weight.detach()*regularization_loss
         # add regularization similar with BYOL
         if regularization == 4:
             with torch.no_grad():
@@ -430,21 +454,25 @@ class DRQAgent(object):
 
             similarity_loss = self.cosine_similarity_loss(byol_prediction, byol_aug_target) + \
                               self.cosine_similarity_loss(byol_aug_prediction, byol_target)
-            critic_loss += weight*similarity_loss
+            self.regularization_loss = similarity_loss.item()
+            critic_loss += self.weight.detach()*similarity_loss
 
         # add regularization similar to SimCLR
-        if regularization in {6, 7}:
-            features1 = F.normalize(self.critic.embedding(obs), dim=-1)
-            features2 = F.normalize(self.critic.embedding(obs_aug), dim=-1)
+        if regularization in {6, 7, 10}:
+            features1 = F.normalize(self.critic.encoder(obs), dim=-1)
+            features2 = F.normalize(self.critic.encoder(obs_aug), dim=-1)
 
             # features: [bsz, n_views, f_dim]
             # `n_views` is the number of crops from each image
             # better be L2 normalized in f_dim dimension
             features = torch.cat((torch.unsqueeze(features1, dim=1), torch.unsqueeze(features2, dim=1)), dim=1)
             contrastive_loss = self.simclr_criterion(features)
-            critic_loss += weight*contrastive_loss
+            self.regularization_loss = contrastive_loss.item()
+            critic_loss += self.weight.detach()*contrastive_loss
 
         logger.log('train_critic/loss', critic_loss, step)
+
+        logger.log('train_critic/regularization_loss', self.regularization_loss, step)
 
         # Optimize the critic
         self.critic_optimizer.zero_grad()
@@ -457,15 +485,29 @@ class DRQAgent(object):
 
         self.critic.log(logger, step)
 
-    def update_actor_and_alpha(self, obs, logger, step):
-        # detach conv filters, so we don't update them with the actor loss
-        dist = self.actor(obs, detach_encoder=True)
-        action = dist.rsample()
-        log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-        # detach conv filters, so we don't update them with the actor loss
-        actor_Q1, actor_Q2 = self.critic(obs, action, detach_encoder=True)
+    def update_actor_and_alpha(self, obs, obs_aug, logger, step, regularization):
+        if regularization == 10:
+            # detach conv filters, so we don't update them with the actor loss
+            # use the averaged embedding
+            embedding = self.actor.encoder(obs, detach=True)
+            embedding_aug = self.actor.encoder(obs_aug, detach=True)
+            averaged_embedding = (embedding+embedding_aug)/2
+            dist = self.actor(averaged_embedding, detach_encoder=True, with_embedding=True)
+            action = dist.rsample()
+            log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+            # detach conv filters, so we don't update them with the actor loss
+            actor_Q1, actor_Q2 = self.critic(averaged_embedding, action, detach_encoder=True, with_embedding=True)
 
-        actor_Q = torch.min(actor_Q1, actor_Q2)
+            actor_Q = torch.min(actor_Q1, actor_Q2)
+        else:
+            # detach conv filters, so we don't update them with the actor loss
+            dist = self.actor(obs, detach_encoder=True)
+            action = dist.rsample()
+            log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+            # detach conv filters, so we don't update them with the actor loss
+            actor_Q1, actor_Q2 = self.critic(obs, action, detach_encoder=True)
+
+            actor_Q = torch.min(actor_Q1, actor_Q2)
 
         actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
 
@@ -488,17 +530,25 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-    def update(self, replay_buffer, logger, step, regularization, weight, CBAM):
+        self.rl_weight_optimizer.zero_grad()
+        rl_weight_loss = (self.weight *
+                      (-self.regularization_loss + self.target_regularization_loss))
+        rl_weight_loss.backward()
+        self.rl_weight_optimizer.step()
+        logger.log('train_alpha/rl_weight_loss', rl_weight_loss, step)
+        logger.log('train_alpha/weight_value', self.weight, step)
+
+    def update(self, replay_buffer, logger, step, regularization, CBAM):
         obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
             self.batch_size, CBAM)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
         self.update_critic(obs, obs_aug, action, reward, next_obs,
-                           next_obs_aug, not_done, logger, step, regularization, weight)
+                           next_obs_aug, not_done, logger, step, regularization)
 
         if step % self.actor_update_frequency == 0:
-            self.update_actor_and_alpha(obs, logger, step)
+            self.update_actor_and_alpha(obs, obs_aug, logger, step, regularization)
 
         if step % self.critic_target_update_frequency == 0:
             utils.soft_update_params(self.critic, self.critic_target,

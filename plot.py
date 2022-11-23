@@ -70,10 +70,16 @@ folders_14 = ['drq', 'contra_loss_weight_01', 'contra_loss_weight_01_hidden_512'
               'drq+contra_loss_weight_005_hidden_512']
 folders_15 = ['drq', 'smooth_l1_weight_1', 'smooth_l1_weight_1_averaged_target',
               'smooth_l1_weight_1_averaged_target_hidden_512',
-              'smooth_l1_weight_05_averaged_target_hidden_512']
+              'smooth_l1_weight_05_averaged_target_hidden_512',
+              'drq+smooth_l1_weight_05_averaged_target_hidden_512']
 folders_16 = ['drq', 'drq_hidden_dim_512', 'drq+regularization_l2_weight_1_hidden_512',
               'drq+contra_loss_weight_002_hidden_512',
-              'smooth_l1_weight_05_averaged_target_hidden_512']
+              'drq+smooth_l1_weight_05_averaged_target_hidden_512']
+folders_18 = ['drq_hidden_dim_512', 'drq_hidden_dim_256', 'drq_hidden_dim_128',
+              'drq+contra_loss_weight_002_hidden_512', 'drq+contra_loss_weight_002_hidden_256',
+              'drq+contra_loss_weight_002_hidden_128',
+              'averaged_embedding+contra_loss_weight_002_hidden_512'
+              ]
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
@@ -124,8 +130,12 @@ folders_11 = ['drq', 'attention_regularization_last_layer']
 # 11.21
 plot_several_folders(prefix=prefix_2, folders=folders_8, title='cheetah_regularization_l2')
 plot_several_folders(prefix=prefix_2, folders=folders_14, title='cheetah_regularization_contra_loss')
-plot_several_folders(prefix=prefix_2, folders=folders_15, title='cheetah_regularization_l1')
-plot_several_folders(prefix=prefix_2, folders=folders_16, title='cheetah_regularization_best')
 
 plot_several_folders(prefix=prefix_3, folders=folders_13, title='reacher_regularization')
 plot_several_folders(prefix=prefix_3, folders=folders_17, title='reacher_contra_loss')
+
+# 11.28
+plot_several_folders(prefix=prefix_2, folders=folders_15, title='cheetah_regularization_l1')
+
+plot_several_folders(prefix=prefix_2, folders=folders_18, title='cheetah_regularization_contra_loss_better')
+plot_several_folders(prefix=prefix_2, folders=folders_16, title='cheetah_regularization_hidden_512_best')
