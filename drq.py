@@ -301,6 +301,7 @@ class DRQAgent(object):
         # regularization weight
         self.init_weight = init_weight
         self.weight = init_weight
+        self.regularization_loss = 0
 
         self.train()
         self.critic_target.train()
