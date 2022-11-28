@@ -152,7 +152,7 @@ class Workspace(object):
                 for _ in range(self.cfg.num_train_iters):
                     self.agent.update(self.replay_buffer, self.logger,
                                       self.step, self.cfg.regularization,
-                                      self.cfg.CBAM)
+                                      self.cfg.CBAM, self.cfg.num_train_steps)
 
             next_obs, reward, done, info = self.env.step(action)
 

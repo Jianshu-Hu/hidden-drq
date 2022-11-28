@@ -20,8 +20,6 @@ CBAM: false
 regularization: 0
 # init weight for regularization loss
 init_weight: 0.1
-# target regularization loss
-target_rl: 1.0
 # hidden dim
 hidden_dim: 1024
 
@@ -62,7 +60,6 @@ agent:
     critic_target_update_frequency: 2
     batch_size: ${batch_size}
     init_weight: ${init_weight}
-    target_rl: ${target_rl}
 
 critic:
   class: drq.Critic

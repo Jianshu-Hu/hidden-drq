@@ -80,6 +80,16 @@ folders_18 = ['drq_hidden_dim_512', 'drq_hidden_dim_256', 'drq_hidden_dim_128',
               'drq+contra_loss_weight_002_hidden_128',
               'averaged_embedding+contra_loss_weight_002_hidden_512'
               ]
+folders_19 = ['drq_hidden_dim_256', 'drq+contra_loss_weight_002_hidden_256',
+              'drq+contra_loss_auto_init_weight_01_target_rl_1_hidden_256',
+              'drq+contra_loss_auto_init_weight_1_target_rl_10_hidden_256',
+              'drq+contra_loss_auto_init_weight_1_target_rl_36_hidden_256',
+              'drq+contra_loss_auto_weight_1_target_36_minus_target_hidden_256']
+folders_20 = ['drq', 'drq_hidden_dim_128', 'drq_hidden_dim_256', 'drq_hidden_dim_512',
+              'drq+contra_loss_weight_002_hidden_256',
+              'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_128',
+              'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_512']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
@@ -99,6 +109,10 @@ folders_17 = ['drq', 'drq_hidden_512', 'contra_loss_weight_01', 'contra_loss_wei
               'contra_loss_weight_002_hidden_512', 'drq+contra_loss_weight_002_hidden_512',
               'drq+contra_loss_weight_005_hidden_512',
               'drq+contra_loss_weight_01_hidden_512']
+folders_21 = ['drq', 'drq_hidden_512', 'drq_hidden_256', 'drq_hidden_128', 'drq+contra_loss_weight_01_hidden_512',
+              'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_512',
+              'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_128']
 
 prefix_4 = 'saved_runs/walker_walk/'
 folders_9 = ['drq', 'attention_regularization_all_layers', 'attention_regularization_last_layer']
@@ -128,14 +142,18 @@ folders_11 = ['drq', 'attention_regularization_last_layer']
 # plot_several_folders(prefix=prefix_5, folders=folders_11, title='pendulum_attention_regularization')
 
 # 11.21
-plot_several_folders(prefix=prefix_2, folders=folders_8, title='cheetah_regularization_l2')
-plot_several_folders(prefix=prefix_2, folders=folders_14, title='cheetah_regularization_contra_loss')
-
-plot_several_folders(prefix=prefix_3, folders=folders_13, title='reacher_regularization')
-plot_several_folders(prefix=prefix_3, folders=folders_17, title='reacher_contra_loss')
+# plot_several_folders(prefix=prefix_2, folders=folders_8, title='cheetah_regularization_l2')
+# plot_several_folders(prefix=prefix_2, folders=folders_14, title='cheetah_regularization_contra_loss')
+#
+# plot_several_folders(prefix=prefix_3, folders=folders_13, title='reacher_regularization')
+# plot_several_folders(prefix=prefix_3, folders=folders_17, title='reacher_contra_loss')
 
 # 11.28
 plot_several_folders(prefix=prefix_2, folders=folders_15, title='cheetah_regularization_l1')
 
 plot_several_folders(prefix=prefix_2, folders=folders_18, title='cheetah_regularization_contra_loss_better')
+plot_several_folders(prefix=prefix_2, folders=folders_19, title='cheetah_regularization_contra_loss_auto')
+plot_several_folders(prefix=prefix_2, folders=folders_20, title='cheetah_regularization_contra_loss_scheduler')
 plot_several_folders(prefix=prefix_2, folders=folders_16, title='cheetah_regularization_hidden_512_best')
+
+plot_several_folders(prefix=prefix_3, folders=folders_21, title='reacher_hard_contra_loss_scheduler')
