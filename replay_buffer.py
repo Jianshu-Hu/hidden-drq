@@ -4,6 +4,8 @@ import kornia
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torchvision.transforms
+
 import utils
 
 
@@ -13,9 +15,14 @@ class ReplayBuffer(object):
         self.capacity = capacity
         self.device = device
 
-        self.aug_trans = nn.Sequential(
+        self.aug_pad_crop = nn.Sequential(
             nn.ReplicationPad2d(image_pad),
             kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+        self.aug_crop = nn.Sequential(
+            kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=5.0)
+
+        self.color_jitter = torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.3)
 
         self.obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
         self.next_obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
@@ -41,7 +48,7 @@ class ReplayBuffer(object):
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
-    def sample(self, batch_size, CBAM=False):
+    def sample(self, batch_size, CBAM=False, data_aug=0):
         idxs = np.random.randint(0,
                                  self.capacity if self.full else self.idx,
                                  size=batch_size)
@@ -61,11 +68,33 @@ class ReplayBuffer(object):
         not_dones_no_max = torch.as_tensor(self.not_dones_no_max[idxs],
                                            device=self.device)
 
+        # data_aug
+        # 0: padding + random crop
+        # 1: interpolate + random crop
+        # 2: color jitter
         if not CBAM:
-            obses = self.aug_trans(obses)
-            next_obses = self.aug_trans(next_obses)
+            if data_aug == 0:
+                obses = self.aug_pad_crop(obses)
+                next_obses = self.aug_pad_crop(next_obses)
+            elif data_aug == 1:
+                obses = F.interpolate(obses, mode='bilinear', scale_factor=1.1)
+                obses = self.aug_crop(obses)
+                next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=1.1)
+                next_obses = self.aug_crop(next_obses)
+            elif data_aug == 2:
+                obses = self.color_jitter(obses)
+                next_obses = self.color_jitter(next_obses)
 
-        obses_aug = self.aug_trans(obses_aug)
-        next_obses_aug = self.aug_trans(next_obses_aug)
+        if data_aug == 0:
+            obses_aug = self.aug_pad_crop(obses_aug)
+            next_obses_aug = self.aug_pad_crop(next_obses_aug)
+        elif data_aug == 1:
+            obses_aug = F.interpolate(obses_aug, mode='bilinear', scale_factor=1.1)
+            obses_aug = self.aug_crop(obses_aug)
+            next_obses_aug = F.interpolate(next_obses_aug, mode='bilinear', scale_factor=1.1)
+            next_obses_aug = self.aug_crop(next_obses_aug)
+        elif data_aug == 2:
+            obses_aug = self.color_jitter(obses_aug)
+            next_obses_aug = self.color_jitter(next_obses_aug)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug

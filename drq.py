@@ -391,18 +391,19 @@ class DRQAgent(object):
                 target_Q = (target_Q + target_Q_aug) / 2
 
         # get current Q estimates
-        # if regularization == 10:
-        #     embedding = self.critic.encoder(obs)
-        #     embedding_aug = self.critic.encoder(obs_aug)
-        #     averaged_embedding = (embedding+embedding_aug)/2
-        #     current_Q1, current_Q2 = self.critic(averaged_embedding, action, with_embedding=True)
-        #     critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-        #         current_Q2, target_Q)
-        current_Q1, current_Q2 = self.critic(obs, action)
-        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-            current_Q2, target_Q)
+        if regularization == 10:
+            embedding = self.critic.encoder(obs)
+            embedding_aug = self.critic.encoder(obs_aug)
+            averaged_embedding = (embedding+embedding_aug)/2
+            current_Q1, current_Q2 = self.critic(averaged_embedding, action, with_embedding=True)
+            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
+                current_Q2, target_Q)
+        else:
+            current_Q1, current_Q2 = self.critic(obs, action)
+            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
+                current_Q2, target_Q)
 
-        if regularization in {1, 7, 8, 9, 10}:
+        if regularization in {1, 7, 8, 9}:
             Q1_aug, Q2_aug = self.critic(obs_aug, action)
             critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
                 Q2_aug, target_Q)
@@ -529,9 +530,9 @@ class DRQAgent(object):
 
         logger.log('train_alpha/weight_value', self.weight, step)
 
-    def update(self, replay_buffer, logger, step, regularization, CBAM, num_train_steps):
+    def update(self, replay_buffer, logger, step, regularization, CBAM, num_train_steps, data_aug):
         obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
-            self.batch_size, CBAM)
+            self.batch_size, CBAM, data_aug)
 
         logger.log('train/batch_reward', reward.mean(), step)
 

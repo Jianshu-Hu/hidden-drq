@@ -39,7 +39,7 @@ def plot_several_folders(prefix, folders, num_runs=3, label_list=[], plot_or_sav
 
     axs.set_xlabel('evaluation steps')
     axs.set_ylabel('episode reward')
-    axs.legend()
+    axs.legend(fontsize=8)
     axs.set_title(title)
     if plot_or_save == 'plot':
         plt.show()
@@ -90,6 +90,11 @@ folders_20 = ['drq', 'drq_hidden_dim_128', 'drq_hidden_dim_256', 'drq_hidden_dim
               'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_128',
               'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
               'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_512']
+folders_22 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'averaged_embedding_for_target_Q+contra_loss_hidden_256',
+              'averaged_embedding_for_Q_target_Q+contra_loss_hidden_256']
+folders_23 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+zoom_in_11_contra_loss_hidden_256','drq+crop_rotate+contra_loss_hidden_256']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
@@ -117,6 +122,7 @@ folders_21 = ['drq', 'drq_hidden_512', 'drq_hidden_256', 'drq_hidden_128', 'drq+
 prefix_4 = 'saved_runs/walker_walk/'
 folders_9 = ['drq', 'attention_regularization_all_layers', 'attention_regularization_last_layer']
 folders_10 = ['drq', 'regularization_l2_weight_1']
+folders_24 = ['drq', 'drq_hidden_256', 'drq+contra_loss_hidden_256']
 
 prefix_5 = 'saved_runs/pendulum/'
 folders_11 = ['drq', 'attention_regularization_last_layer']
@@ -149,11 +155,18 @@ folders_11 = ['drq', 'attention_regularization_last_layer']
 # plot_several_folders(prefix=prefix_3, folders=folders_17, title='reacher_contra_loss')
 
 # 11.28
-plot_several_folders(prefix=prefix_2, folders=folders_15, title='cheetah_regularization_l1')
+# plot_several_folders(prefix=prefix_2, folders=folders_15, title='cheetah_regularization_l1')
+#
+# plot_several_folders(prefix=prefix_2, folders=folders_18, title='cheetah_regularization_contra_loss_better')
+# plot_several_folders(prefix=prefix_2, folders=folders_19, title='cheetah_regularization_contra_loss_auto')
+# plot_several_folders(prefix=prefix_2, folders=folders_20, title='cheetah_regularization_contra_loss_scheduler')
+# plot_several_folders(prefix=prefix_2, folders=folders_16, title='cheetah_regularization_hidden_512_best')
+#
+# plot_several_folders(prefix=prefix_3, folders=folders_21, title='reacher_hard_contra_loss_scheduler')
 
-plot_several_folders(prefix=prefix_2, folders=folders_18, title='cheetah_regularization_contra_loss_better')
-plot_several_folders(prefix=prefix_2, folders=folders_19, title='cheetah_regularization_contra_loss_auto')
-plot_several_folders(prefix=prefix_2, folders=folders_20, title='cheetah_regularization_contra_loss_scheduler')
-plot_several_folders(prefix=prefix_2, folders=folders_16, title='cheetah_regularization_hidden_512_best')
+# 12.5
+plot_several_folders(prefix=prefix_2, folders=folders_22, title='cheetah_averaged_embedding')
+plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_transformations')
 
-plot_several_folders(prefix=prefix_3, folders=folders_21, title='reacher_hard_contra_loss_scheduler')
+plot_several_folders(prefix=prefix_4, folders=folders_24, title='walker_walk_contra_loss')
+

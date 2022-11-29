@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=averaged_embedding_for_target_Q+contra_loss_cosine_weight_hidden_256
+tag=averaged_embedding_for_Q_target_Q+contra_loss_cosine_weight_hidden_256
 seed=3
 
 echo "start running $tag with seed $seed"
