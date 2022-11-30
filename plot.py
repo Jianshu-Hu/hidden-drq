@@ -122,7 +122,8 @@ folders_21 = ['drq', 'drq_hidden_512', 'drq_hidden_256', 'drq_hidden_128', 'drq+
 prefix_4 = 'saved_runs/walker_walk/'
 folders_9 = ['drq', 'attention_regularization_all_layers', 'attention_regularization_last_layer']
 folders_10 = ['drq', 'regularization_l2_weight_1']
-folders_24 = ['drq', 'drq_hidden_256', 'drq+contra_loss_hidden_256']
+folders_24 = ['drq', 'drq_hidden_256', 'drq_hidden_128',
+              'drq+contra_loss_hidden_256', 'drq+contra_loss_hidden_128']
 
 prefix_5 = 'saved_runs/pendulum/'
 folders_11 = ['drq', 'attention_regularization_last_layer']

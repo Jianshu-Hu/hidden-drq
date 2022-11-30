@@ -15,12 +15,10 @@ class ReplayBuffer(object):
         self.capacity = capacity
         self.device = device
 
-        self.aug_pad_crop = nn.Sequential(
-            nn.ReplicationPad2d(image_pad),
-            kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
-        self.aug_crop = nn.Sequential(
-            kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
-        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=5.0)
+        self.aug_pad_crop = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]), padding=image_pad,
+                                                              padding_mode='edge')
+        self.aug_crop = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]))
+        self.aug_rotation = torchvision.transforms.RandomRotation(degrees=5.0)
 
         self.color_jitter = torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.3)
 
@@ -72,6 +70,7 @@ class ReplayBuffer(object):
         # 0: padding + random crop
         # 1: interpolate + random crop
         # 2: color jitter
+        # 3: padding random crop + rotation
         if not CBAM:
             if data_aug == 0:
                 obses = self.aug_pad_crop(obses)
@@ -82,8 +81,15 @@ class ReplayBuffer(object):
                 next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=1.1)
                 next_obses = self.aug_crop(next_obses)
             elif data_aug == 2:
-                obses = self.color_jitter(obses)
-                next_obses = self.color_jitter(next_obses)
+                repeat = int(obses.shape[1]/3)
+                for i in range(repeat):
+                    obses[:, 3*i:3*(i+1)] = self.color_jitter(obses[:, 3*i:3*(i+1)])
+                    next_obses[:, 3*i:3*(i+1)] = self.color_jitter(next_obses[:, 3*i:3*(i+1)])
+            elif data_aug == 3:
+                obses = self.aug_pad_crop(obses)
+                obses = self.aug_rotation(obses)
+                next_obses = self.aug_pad_crop(next_obses)
+                next_obses = self.aug_rotation(next_obses)
 
         if data_aug == 0:
             obses_aug = self.aug_pad_crop(obses_aug)
@@ -94,7 +100,14 @@ class ReplayBuffer(object):
             next_obses_aug = F.interpolate(next_obses_aug, mode='bilinear', scale_factor=1.1)
             next_obses_aug = self.aug_crop(next_obses_aug)
         elif data_aug == 2:
-            obses_aug = self.color_jitter(obses_aug)
-            next_obses_aug = self.color_jitter(next_obses_aug)
+            repeat = int(obses.shape[1] / 3)
+            for i in range(repeat):
+                obses_aug[:, 3*i:3*(i+1)] = self.color_jitter(obses_aug[:, 3*i:3*(i+1)])
+                next_obses_aug[:, 3*i:3*(i+1)] = self.color_jitter(next_obses_aug[:, 3*i:3*(i+1)])
+        elif data_aug == 3:
+            obses_aug = self.aug_pad_crop(obses_aug)
+            obses_aug = self.aug_rotation(obses_aug)
+            next_obses_aug = self.aug_pad_crop(next_obses_aug)
+            next_obses_aug = self.aug_rotation(next_obses_aug)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug
