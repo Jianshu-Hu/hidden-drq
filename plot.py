@@ -94,7 +94,16 @@ folders_22 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_ini
               'averaged_embedding_for_target_Q+contra_loss_hidden_256',
               'averaged_embedding_for_Q_target_Q+contra_loss_hidden_256']
 folders_23 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
-              'drq+zoom_in_11_contra_loss_hidden_256','drq+crop_rotate+contra_loss_hidden_256']
+              'drq+zoom_in_11_contra_loss_hidden_256', 'drq+zoom_in_11_bilinear+contra_loss_hidden_256',
+              'drq+zoom_in_12_bilinear+contra_loss_hidden_256','drq+zoom_out_08+crop+contra_loss_hidden_256',
+              'drq+crop_rotate+contra_loss_hidden_256', 'drq+crop+rotate+contra_loss_hidden_256']
+folders_25 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+color_jitter_03+contra_loss_hidden_256',
+              'drq+brightness_01+contra_loss_hidden_256', 'drq+brightness_01+hidden_256',
+              'drq+hue_01+contra_loss_hidden_256', 'drq+hue_01+crop+contra_loss_hidden_256']
+folders_26 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'remove_back_hidden_256',
+              'drq+gaussian_blur_3_2_5+contra_loss_hidden_256','drq+gaussian_blur_3_2_5+crop+contra_loss_hidden_256']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
@@ -167,7 +176,9 @@ folders_11 = ['drq', 'attention_regularization_last_layer']
 
 # 12.5
 plot_several_folders(prefix=prefix_2, folders=folders_22, title='cheetah_averaged_embedding')
-plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_transformations')
+plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_spatial')
+plot_several_folders(prefix=prefix_2, folders=folders_25, title='cheetah_color')
+plot_several_folders(prefix=prefix_2, folders=folders_26, title='cheetah_background')
 
 plot_several_folders(prefix=prefix_4, folders=folders_24, title='walker_walk_contra_loss')
 

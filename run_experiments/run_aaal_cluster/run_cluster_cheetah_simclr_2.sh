@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=drq+zoom_in_11_bilinear+contra_loss_hidden_256
+tag=drq+zoom_in_105_bilinear+contra_loss_hidden_256
 seed=2
 
 echo "start running $tag with seed $seed"

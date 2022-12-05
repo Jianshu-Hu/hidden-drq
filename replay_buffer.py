@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torchvision.transforms
+from torchvision.utils import save_image
 
 import utils
 
@@ -17,10 +18,15 @@ class ReplayBuffer(object):
 
         self.aug_pad_crop = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]), padding=image_pad,
                                                               padding_mode='edge')
+        self.aug_pad_crop_zoom_out = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]), padding=10,
+                                                 padding_mode='edge')
         self.aug_crop = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]))
         self.aug_rotation = torchvision.transforms.RandomRotation(degrees=5.0)
 
-        self.color_jitter = torchvision.transforms.ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.3)
+        self.color_jitter = torchvision.transforms.ColorJitter(brightness=0.1)
+        # , contrast=0.3, saturation=0.3, hue=0.3)
+
+        self.background_aug = BackgroundDetection(device)
 
         self.obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
         self.next_obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
@@ -31,6 +37,8 @@ class ReplayBuffer(object):
 
         self.idx = 0
         self.full = False
+
+        self.image_count = 0
 
     def __len__(self):
         return self.capacity if self.full else self.idx
@@ -46,7 +54,9 @@ class ReplayBuffer(object):
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
+
     def sample(self, batch_size, CBAM=False, data_aug=0):
+        self.image_count += 1
         idxs = np.random.randint(0,
                                  self.capacity if self.full else self.idx,
                                  size=batch_size)
@@ -57,6 +67,13 @@ class ReplayBuffer(object):
         next_obses_aug = next_obses.copy()
 
         obses = torch.as_tensor(obses, device=self.device).float()
+
+        # for i in range(batch_size):
+        #     repeat = int(obses.shape[1] / 3)
+        #     for j in range(repeat):
+        #         save_image(obses[i, 3*j:3*(j+1)]/255.0, '/bigdata/users/jhu/hidden-drq/outputs/saved_img/'
+        #                    +str(i)+'_'+str(j)+'.png')
+        # raise ValueError('Done sampling images')
         next_obses = torch.as_tensor(next_obses, device=self.device).float()
         obses_aug = torch.as_tensor(obses_aug, device=self.device).float()
         next_obses_aug = torch.as_tensor(next_obses_aug,
@@ -69,45 +86,106 @@ class ReplayBuffer(object):
         # data_aug
         # 0: padding + random crop
         # 1: interpolate + random crop
-        # 2: color jitter
+        # 2: color jitter + padding, random crop
         # 3: padding random crop + rotation
+        # 4: remove background
+        # 5: add noise to background + padding, random crop
+        # 6: zoom out + random crop
         if not CBAM:
             if data_aug == 0:
                 obses = self.aug_pad_crop(obses)
                 next_obses = self.aug_pad_crop(next_obses)
             elif data_aug == 1:
-                obses = F.interpolate(obses, mode='bilinear', scale_factor=1.1)
+                obses = F.interpolate(obses, mode='bilinear', scale_factor=1.05)
                 obses = self.aug_crop(obses)
-                next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=1.1)
+                next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=1.05)
                 next_obses = self.aug_crop(next_obses)
             elif data_aug == 2:
                 repeat = int(obses.shape[1]/3)
                 for i in range(repeat):
                     obses[:, 3*i:3*(i+1)] = self.color_jitter(obses[:, 3*i:3*(i+1)])
                     next_obses[:, 3*i:3*(i+1)] = self.color_jitter(next_obses[:, 3*i:3*(i+1)])
+                obses = self.aug_pad_crop(obses)
+                next_obses = self.aug_pad_crop(next_obses)
             elif data_aug == 3:
                 obses = self.aug_pad_crop(obses)
                 obses = self.aug_rotation(obses)
                 next_obses = self.aug_pad_crop(next_obses)
                 next_obses = self.aug_rotation(next_obses)
+            elif data_aug == 4:
+                obses = self.background_aug.remove_background(obses)
+                next_obses = self.background_aug.remove_background(next_obses)
+            elif data_aug == 5:
+                obses = self.background_aug.add_noise_to_background(obses)
+                next_obses = self.background_aug.add_noise_to_background(next_obses)
+                obses = self.aug_pad_crop(obses)
+                next_obses = self.aug_pad_crop(next_obses)
+            elif data_aug == 6:
+                obses = F.interpolate(obses, mode='bilinear', scale_factor=0.8)
+                obses = self.aug_pad_crop_zoom_out(obses)
+                next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=0.8)
+                next_obses = self.aug_pad_crop_zoom_out(next_obses)
 
         if data_aug == 0:
             obses_aug = self.aug_pad_crop(obses_aug)
             next_obses_aug = self.aug_pad_crop(next_obses_aug)
         elif data_aug == 1:
-            obses_aug = F.interpolate(obses_aug, mode='bilinear', scale_factor=1.1)
+            obses_aug = F.interpolate(obses_aug, mode='bilinear', scale_factor=1.2)
             obses_aug = self.aug_crop(obses_aug)
-            next_obses_aug = F.interpolate(next_obses_aug, mode='bilinear', scale_factor=1.1)
+            next_obses_aug = F.interpolate(next_obses_aug, mode='bilinear', scale_factor=1.2)
             next_obses_aug = self.aug_crop(next_obses_aug)
         elif data_aug == 2:
             repeat = int(obses.shape[1] / 3)
             for i in range(repeat):
                 obses_aug[:, 3*i:3*(i+1)] = self.color_jitter(obses_aug[:, 3*i:3*(i+1)])
                 next_obses_aug[:, 3*i:3*(i+1)] = self.color_jitter(next_obses_aug[:, 3*i:3*(i+1)])
+            obses_aug = self.aug_pad_crop(obses_aug)
+            next_obses_aug = self.aug_pad_crop(next_obses_aug)
         elif data_aug == 3:
             obses_aug = self.aug_pad_crop(obses_aug)
             obses_aug = self.aug_rotation(obses_aug)
             next_obses_aug = self.aug_pad_crop(next_obses_aug)
             next_obses_aug = self.aug_rotation(next_obses_aug)
+        elif data_aug == 4:
+            obses_aug = self.background_aug.remove_background(obses_aug)
+            next_obses_aug = self.background_aug.remove_background(next_obses_aug)
+        elif data_aug == 5:
+            obses_aug = self.background_aug.add_noise_to_background(obses_aug)
+            next_obses_aug = self.background_aug.add_noise_to_background(next_obses_aug)
+            obses_aug = self.aug_pad_crop(obses_aug)
+            next_obses_aug = self.aug_pad_crop(next_obses_aug)
+        elif data_aug == 6:
+            obses_aug = F.interpolate(obses_aug, mode='bilinear', scale_factor=0.8)
+            obses_aug = self.aug_pad_crop_zoom_out(obses_aug)
+            next_obses_aug = F.interpolate(next_obses_aug, mode='bilinear', scale_factor=0.8)
+            next_obses_aug = self.aug_pad_crop_zoom_out(next_obses_aug)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug
+
+
+class BackgroundDetection():
+    def __init__(self, device):
+        self.threshold = 0.001
+        self.device = device
+
+        self.gaussian_blur = torchvision.transforms.GaussianBlur(kernel_size=3, sigma=(2, 5))
+
+    def background_masks(self, images):
+        # images N*C*W*H
+        repeat_frames = int(images.shape[1]/3)
+        mask = torch.ones((images.shape[0], images.shape[-1], images.shape[-1]), dtype=torch.bool).to(self.device)
+        for i in range(repeat_frames-1):
+            diff = torch.mean(torch.square(images[:, i*3:(i+1)*3] - images[:, (i+1)*3:(i+2)*3]), dim=1)
+            mask = mask & (diff < self.threshold)
+
+        return mask.unsqueeze(1).expand(images.shape)
+
+    def remove_background(self, images):
+        mask = self.background_masks(images)
+        images = torch.masked_fill(images, mask, value=0)
+        return images
+
+    def add_noise_to_background(self, images):
+        mask = self.background_masks(images)
+        noisy_images = images * (~mask) + self.gaussian_blur(images) * mask
+        return noisy_images
