@@ -49,6 +49,8 @@ def plot_several_folders(prefix, folders, num_runs=3, label_list=[], plot_or_sav
 
 prefix_1 = 'saved_runs/cartpole/'
 folders_1 = ['byol', 'drq', 'drq_with_attention', 'regularization']
+folders_27 = ['drq', 'drq_hidden_256', 'drq+contra_loss_hidden_256',
+              'drq_hidden_128', 'drq+contra_loss_hidden_128']
 
 prefix_2 = 'saved_runs/cheetah/'
 folders_2 = ['drq', 'drq_attention', 'drq_attention_totally_refined']
@@ -95,7 +97,8 @@ folders_22 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_ini
               'averaged_embedding_for_Q_target_Q+contra_loss_hidden_256']
 folders_23 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
               'drq+zoom_in_11_contra_loss_hidden_256', 'drq+zoom_in_11_bilinear+contra_loss_hidden_256',
-              'drq+zoom_in_12_bilinear+contra_loss_hidden_256','drq+zoom_out_08+crop+contra_loss_hidden_256',
+              'drq+zoom_in_12_bilinear+contra_loss_hidden_256',
+              'drq+zoom_in_105_bilinear+contra_loss_hidden_256','drq+zoom_out_08+crop+contra_loss_hidden_256',
               'drq+crop_rotate+contra_loss_hidden_256', 'drq+crop+rotate+contra_loss_hidden_256']
 folders_25 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
               'drq+color_jitter_03+contra_loss_hidden_256',
@@ -104,6 +107,31 @@ folders_25 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_ini
 folders_26 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
               'remove_back_hidden_256',
               'drq+gaussian_blur_3_2_5+contra_loss_hidden_256','drq+gaussian_blur_3_2_5+crop+contra_loss_hidden_256']
+
+folders_28 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+exp_div_max_contra_loss_hidden_256', 'drq+init_weight_005_log_contra_loss_hidden_256',
+              'drq+exp_minus_max_contra_loss_hidden_256',
+              'drq+Q_diff_contra_loss_hidden_256']
+folders_30 = ['drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256', 'drq+log_contra_loss_hidden_256',
+              'drq+init_weight_015_log_contra_loss_hidden_256', 'drq+init_weight_005_log_contra_loss_hidden_256',
+              'drq+without_scheduler_log_contra_loss_hidden_256',
+              'drq+init_weight_005_no_scheduler_log_contra_loss_hidden_256']
+folders_31 = ['drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+exp_minus_max_contra_loss_hidden_256', 'drq+init_weight_015_exp_minus_max_contra_loss_hidden_256',
+              'drq+init_weight_005_exp_minus_max_contra_loss_hidden_256',
+              'drq+init_weight_005_no_scheduler_exp_minus_max_contra_loss_hidden_256',
+              'drq+without_scheduler_exp_minus_max_contra_loss_hidden_256']
+folders_32 = ['drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+exp_div_max_contra_loss_hidden_256', 'drq+init_weight_015_exp_div_max_contra_loss_hidden_256',
+              'drq+init_weight_005_exp_div_max_contra_loss_hidden_256']
+folders_29 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+simclr_on_last_conv+hidden_256',
+              'drq+simclr_on_second_to_last+contra_loss_encoder+hidden_256',
+              'drq+simclr_on_second_to_last+simclr_on_last+hidden_256',
+              'drq+proj_512+simclr_on_third_second_to_last+contra_loss_encoder+hidden_256',
+              'drq+proj_512+simclr_on_third_second_to_last+simclr_on_last+hidden_256',
+              'drq+init_weight_015_simclr_on_second_to_last+simclr_on_last+hidden_256',
+              'drq+init_weight_005_simclr_on_second_to_last+simclr_on_last+hidden_256']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
@@ -175,10 +203,21 @@ folders_11 = ['drq', 'attention_regularization_last_layer']
 # plot_several_folders(prefix=prefix_3, folders=folders_21, title='reacher_hard_contra_loss_scheduler')
 
 # 12.5
-plot_several_folders(prefix=prefix_2, folders=folders_22, title='cheetah_averaged_embedding')
-plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_spatial')
-plot_several_folders(prefix=prefix_2, folders=folders_25, title='cheetah_color')
-plot_several_folders(prefix=prefix_2, folders=folders_26, title='cheetah_background')
+# plot_several_folders(prefix=prefix_2, folders=folders_22, title='cheetah_averaged_embedding')
+# plot_several_folders(prefix=prefix_2, folders=folders_25, title='cheetah_color')
+# plot_several_folders(prefix=prefix_2, folders=folders_26, title='cheetah_background')
+#
+# plot_several_folders(prefix=prefix_4, folders=folders_24, title='walker_walk_contra_loss')
 
-plot_several_folders(prefix=prefix_4, folders=folders_24, title='walker_walk_contra_loss')
+# 12.12
+# plot_several_folders(prefix=prefix_1, folders=folders_27, title='cartpole_contra_loss')
+# plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_spatial')
+plot_several_folders(prefix=prefix_2, folders=folders_28, title='cheetah_Q_contrastive_loss')
+plot_several_folders(prefix=prefix_2, folders=folders_30, title='cheetah_Q_log_tune')
+plot_several_folders(prefix=prefix_2, folders=folders_31, title='cheetah_Q_exp_minus_max_tune')
+plot_several_folders(prefix=prefix_2, folders=folders_32, title='cheetah_Q_exp_div_max_tune')
+plot_several_folders(prefix=prefix_2, folders=folders_29, title='cheetah_multi_level')
+
+# 12.19
+
 
