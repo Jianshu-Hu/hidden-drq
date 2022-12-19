@@ -7,6 +7,8 @@ import math
 import random
 import kornia
 
+from sklearn.cluster import KMeans
+
 from torchvision.utils import save_image
 
 import utils
@@ -69,12 +71,12 @@ class CBAMBlock(nn.Module):
 
 class Encoder(nn.Module):
     """Convolutional encoder for image-based observations."""
-    def __init__(self, obs_shape, feature_dim, add_attention_module, image_pad):
+    def __init__(self, obs_shape, feature_dim, add_attention_module, image_pad, num_filters):
         super().__init__()
 
         assert len(obs_shape) == 3
         self.num_layers = 4
-        self.num_filters = 32
+        self.num_filters = num_filters
         self.output_dim = 35
         self.output_logits = False
         self.feature_dim = feature_dim
@@ -88,17 +90,17 @@ class Encoder(nn.Module):
 
         self.add_attention_module = add_attention_module
 
-        if self.add_attention_module:
-            self.CBAMs = nn.ModuleList([
-                CBAMBlock(obs_shape[0], only_spatial=True),
-                CBAMBlock(self.num_filters),
-                CBAMBlock(self.num_filters),
-                CBAMBlock(self.num_filters),
-                CBAMBlock(self.num_filters)
-            ])
-            self.aug_trans = nn.Sequential(
-                nn.ReplicationPad2d(image_pad),
-                kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+        # if self.add_attention_module:
+        #     self.CBAMs = nn.ModuleList([
+        #         CBAMBlock(obs_shape[0], only_spatial=True),
+        #         CBAMBlock(self.num_filters),
+        #         CBAMBlock(self.num_filters),
+        #         CBAMBlock(self.num_filters),
+        #         CBAMBlock(self.num_filters)
+        #     ])
+        #     self.aug_trans = nn.Sequential(
+        #         nn.ReplicationPad2d(image_pad),
+        #         kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
 
         self.head = nn.Sequential(
             nn.Linear(self.num_filters * 35 * 35, self.feature_dim),
@@ -110,10 +112,10 @@ class Encoder(nn.Module):
         obs = obs / 255.
         self.outputs['obs'] = obs
         # use spatial attention module to process obs
-        if self.add_attention_module:
-            obs = self.CBAMs[0](obs)
-            if with_aug:
-                obs = self.aug_trans(obs)
+        # if self.add_attention_module:
+        #     obs = self.CBAMs[0](obs)
+        #     if with_aug:
+        #         obs = self.aug_trans(obs)
 
         conv = torch.relu(self.convs[0](obs))
         self.outputs['conv1'] = conv
@@ -271,7 +273,7 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size, init_weight):
+                 critic_target_update_frequency, batch_size, init_weight, n_clusters):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -302,7 +304,8 @@ class DRQAgent(object):
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=lr)
 
         # regularization loss
-        self.simclr_criterion = SupConLoss(temperature=0.5)
+        self.simclr_criterion = SupConLoss(temperature=0.5, n_clusters=n_clusters)
+        self.q_regularized_loss = QRegularizedLoss(device=self.device)
         self.mse = nn.MSELoss()
         self.smooth_l1_loss = nn.SmoothL1Loss()
         # regularization weight
@@ -341,206 +344,70 @@ class DRQAgent(object):
     def update_critic(self, obs, obs_aug, action, reward, next_obs,
                       next_obs_aug, not_done, logger, step, regularization):
         # regularization:
-        # 0:SAC
         # 1:SAC + drq
-        # 2:SAC + l2 regularization
-        # 3:SAC + smooth l1 regularization
-        # 4:SAC + BYOL regularization
-        # 5:SAC + attention regularization
-        # 6:SAC + drq + SimCLR
-        # 7:SAC + drq + Contrastive loss
-        # 8:SAC + drq + l2 regularization
-        # 9:SAC + drq + smooth l1 regularization
-        # 10:SAC + averaged embedding + contrastive loss
-        # 11:SAC + drq + weighted contrastive loss
-        # 12:SAC + drq + SimCLR with projector
+        # 2:SAC + drq + Contrastive loss
+        # 3:SAC + drq + Q-supervised Contrastive loss
+
+        # 4:SAC + drq + Q_regularized_loss(type 1)
+        # 5:SAC + drq + Q_regularized_loss(type 2)
+        # 6:SAC + drq + Q_regularized_loss(type 3)
+
         with torch.no_grad():
-            if regularization == 10:
-                dist = self.actor(next_obs)
-                next_action = dist.rsample()
-                log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
-                embedding = self.critic_target.encoder(next_obs)
-                embedding_aug = self.critic_target.encoder(next_obs_aug)
-                averaged_embedding = (embedding+embedding_aug)/2
-                target_Q1, target_Q2 = self.critic_target(averaged_embedding, next_action, with_embedding=True)
-                target_V = torch.min(target_Q1,
-                                     target_Q2) - self.alpha.detach() * log_prob
-                target_Q = reward + (not_done * self.discount * target_V)
-            else:
-                dist = self.actor(next_obs)
-                next_action = dist.rsample()
-                log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
-                target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
-                target_V = torch.min(target_Q1,
-                                     target_Q2) - self.alpha.detach() * log_prob
-                target_Q = reward + (not_done * self.discount * target_V)
+            dist = self.actor(next_obs)
+            next_action = dist.rsample()
+            log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+            target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
+            target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob
+            target_Q = reward + (not_done * self.discount * target_V)
 
-            if regularization in {1, 6, 7, 8, 9, 11, 12}:
-                dist_aug = self.actor(next_obs_aug)
-                next_action_aug = dist_aug.rsample()
-                log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
-                                                                      keepdim=True)
-                target_Q1, target_Q2 = self.critic_target(next_obs_aug,
-                                                          next_action_aug)
-                target_V = torch.min(
-                    target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
-                target_Q_aug = reward + (not_done * self.discount * target_V)
+            dist_aug = self.actor(next_obs_aug)
+            next_action_aug = dist_aug.rsample()
+            log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1, keepdim=True)
+            target_Q1, target_Q2 = self.critic_target(next_obs_aug, next_action_aug)
+            target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
+            target_Q_aug = reward + (not_done * self.discount * target_V)
 
-                target_Q = (target_Q + target_Q_aug) / 2
-            if regularization in {5}:
-                dist_aug = self.actor(next_obs)
-                next_action_aug = dist_aug.rsample()
-                log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
-                                                                      keepdim=True)
-                target_Q1, target_Q2 = self.critic_target.forward(next_obs, next_action_aug, with_aug=True)
-                target_V = torch.min(
-                    target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
-                target_Q_aug = reward + (not_done * self.discount * target_V)
-
-                target_Q = (target_Q + target_Q_aug) / 2
+            target_Q = (target_Q + target_Q_aug) / 2
 
         # get current Q estimates
-        if regularization == 10:
-            embedding = self.critic.encoder(obs)
-            embedding_aug = self.critic.encoder(obs_aug)
-            averaged_embedding = (embedding+embedding_aug)/2
-            current_Q1, current_Q2 = self.critic(averaged_embedding, action, with_embedding=True)
-            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-                current_Q2, target_Q)
-        else:
-            current_Q1, current_Q2 = self.critic(obs, action)
-            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-                current_Q2, target_Q)
+        current_Q1, current_Q2 = self.critic(obs, action)
+        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
-        if regularization in {1, 6, 7, 8, 9, 11, 12}:
-            Q1_aug, Q2_aug = self.critic(obs_aug, action)
-            critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
-                Q2_aug, target_Q)
-
-        # use attention for creating augmentation
-        if regularization in {5}:
-            Q1_aug, Q2_aug = self.critic.forward(obs, action, with_aug=True)
-            critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
-                Q2_aug, target_Q)
+        Q1_aug, Q2_aug = self.critic(obs_aug, action)
+        critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q)
 
         # add regularization term for hidden layer output
-        if regularization in {2, 3, 8, 9}:
-            if regularization in {2, 8}:
-                with torch.no_grad():
-                    features_target = self.critic_target.encoder(obs)
-                    features_aug_target = self.critic_target.encoder(obs_aug)
-                features = self.critic.encoder(obs)
-                features_aug = self.critic.encoder(obs_aug)
+        if regularization in {2, 3}:
+            features1 = F.normalize(self.critic.encoder(obs), dim=-1)
+            features2 = F.normalize(self.critic.encoder(obs_aug), dim=-1)
 
-                # similarity_loss = self.cosine_similarity_loss(features, features_aug_target) + \
-                #                   self.cosine_similarity_loss(features_aug, features_target)
-                # critic_loss += similarity_loss
-                regularization_loss = self.mse(features, features_aug_target) \
-                          + self.mse(features_aug, features_target)
-            if regularization in {3, 9}:
-                with torch.no_grad():
-                    features_target = self.critic_target.encoder(obs)
-                    features_aug_target = self.critic_target.encoder(obs_aug)
-                    averaged_target = (features_target + features_aug_target)/2
-                features = self.critic.encoder(obs)
-                features_aug = self.critic.encoder(obs_aug)
+            # features: [bsz, n_views, f_dim]
+            # `n_views` is the number of crops from each image
+            # better be L2 normalized in f_dim dimension
+            features = torch.cat((torch.unsqueeze(features1, dim=1), torch.unsqueeze(features2, dim=1)), dim=1)
+            if regularization == 3:
+                contrastive_loss = self.simclr_criterion(features, target_Q=target_Q)
+                # self.weight = self.init_weight
+            else:
+                contrastive_loss = self.simclr_criterion(features)
+            self.regularization_loss = contrastive_loss.item()
+            critic_loss += self.weight * contrastive_loss
+        if regularization in {4, 5, 6}:
+            with torch.no_grad():
+                features_target = self.critic_target.encoder(obs)
+                features_aug_target = self.critic_target.encoder(obs_aug)
+            features = self.critic.encoder(obs)
+            features_aug = self.critic.encoder(obs_aug)
 
-                regularization_loss = self.smooth_l1_loss(features, averaged_target) \
-                          + self.smooth_l1_loss(features_aug, averaged_target)
+            # regularized_loss = self.cosine_similarity_loss(features, features_aug_target) + \
+            #                   self.cosine_similarity_loss(features_aug, features_target)
+            # regularization_loss = self.mse(features, features_aug_target) \
+            #           + self.mse(features_aug, features_target)
+            regularization_loss = self.q_regularized_loss(features, features_aug,
+                                                          features_target, features_aug_target, target_Q,
+                                                          regularization)
             self.regularization_loss = regularization_loss.item()
             critic_loss += self.weight*regularization_loss
-        # add regularization similar with BYOL
-        if regularization == 4:
-            with torch.no_grad():
-                byol_target = self.critic_target.forward_projector(obs)
-                byol_aug_target = self.critic_target.forward_projector(obs_aug)
-            byol_prediction = self.critic.forward_predictor(obs)
-            byol_aug_prediction = self.critic.forward_predictor(obs_aug)
-
-            similarity_loss = self.cosine_similarity_loss(byol_prediction, byol_aug_target) + \
-                              self.cosine_similarity_loss(byol_aug_prediction, byol_target)
-            self.regularization_loss = similarity_loss.item()
-            critic_loss += self.weight*similarity_loss
-
-        # add regularization similar to SimCLR
-        if regularization in {6, 7, 10, 11, 12}:
-            if regularization == 6:
-                conv_output = self.critic.encoder.forward_conv(obs, output_layer_num=2)
-                aug_conv_output = self.critic.encoder.forward_conv(obs_aug, output_layer_num=2)
-
-                # simclr on output of third to last conv layer
-                # features3 = F.normalize(self.critic.projector3(conv_output[2]), dim=-1)
-                # features3_aug = F.normalize(self.critic.projector3(aug_conv_output[2]), dim=-1)
-
-                # simclr on output of second to last conv layer
-                features2 = F.normalize(self.critic.projector2(conv_output[1]), dim=-1)
-                features2_aug = F.normalize(self.critic.projector2(aug_conv_output[1]), dim=-1)
-
-                # simclr on output of encoder
-                features1 = F.normalize(torch.tanh(self.critic.encoder.head(conv_output[0])), dim=-1)
-                features1_aug = F.normalize(torch.tanh(self.critic.encoder.head(aug_conv_output[0])), dim=-1)
-
-                # features: [bsz, n_views, f_dim]
-                # `n_views` is the number of crops from each image
-                # better be L2 normalized in f_dim dimension
-                # features3_cat = torch.cat((torch.unsqueeze(features3, dim=1),
-                #                            torch.unsqueeze(features3_aug, dim=1)), dim=1)
-                features2_cat = torch.cat((torch.unsqueeze(features2, dim=1),
-                                           torch.unsqueeze(features2_aug, dim=1)), dim=1)
-                features1_cat = torch.cat((torch.unsqueeze(features1, dim=1),
-                                           torch.unsqueeze(features1_aug, dim=1)), dim=1)
-
-                contrastive_loss = self.weight*self.simclr_criterion(features1_cat)+\
-                                   self.weight/2*self.simclr_criterion(features2_cat)
-                                   # self.weight/4*self.simclr_criterion(features3_cat)
-                self.regularization_loss = contrastive_loss.item()
-                critic_loss += contrastive_loss
-            elif regularization == 12:
-                conv_output = self.critic.encoder.forward_conv(obs, output_layer_num=2)
-                aug_conv_output = self.critic.encoder.forward_conv(obs_aug, output_layer_num=2)
-
-                # simclr on output of third to last conv layer
-                # features3 = F.normalize(self.critic.projector3(conv_output[2]), dim=-1)
-                # features3_aug = F.normalize(self.critic.projector3(aug_conv_output[2]), dim=-1)
-
-                # simclr on output of second to last conv layer
-                features2 = F.normalize(self.critic.projector2(conv_output[1]), dim=-1)
-                features2_aug = F.normalize(self.critic.projector2(aug_conv_output[1]), dim=-1)
-
-                # simclr on output of last conv layer
-                features1 = F.normalize(self.critic.projector(conv_output[0]), dim=-1)
-                features1_aug = F.normalize(self.critic.projector(aug_conv_output[0]), dim=-1)
-
-                # features: [bsz, n_views, f_dim]
-                # `n_views` is the number of crops from each image
-                # better be L2 normalized in f_dim dimension
-                # features3_cat = torch.cat((torch.unsqueeze(features3, dim=1),
-                #                            torch.unsqueeze(features3_aug, dim=1)), dim=1)
-                features2_cat = torch.cat((torch.unsqueeze(features2, dim=1),
-                                           torch.unsqueeze(features2_aug, dim=1)), dim=1)
-                features1_cat = torch.cat((torch.unsqueeze(features1, dim=1),
-                                           torch.unsqueeze(features1_aug, dim=1)), dim=1)
-
-                contrastive_loss = self.weight * self.simclr_criterion(features1_cat) + \
-                                   self.weight / 2 * self.simclr_criterion(features2_cat)
-                                   # self.weight / 4 * self.simclr_criterion(features3_cat)
-                self.regularization_loss = contrastive_loss.item()
-                critic_loss += contrastive_loss
-            else:
-                features1 = F.normalize(self.critic.encoder(obs), dim=-1)
-                features2 = F.normalize(self.critic.encoder(obs_aug), dim=-1)
-
-                # features: [bsz, n_views, f_dim]
-                # `n_views` is the number of crops from each image
-                # better be L2 normalized in f_dim dimension
-                features = torch.cat((torch.unsqueeze(features1, dim=1), torch.unsqueeze(features2, dim=1)), dim=1)
-                if regularization == 11:
-                    contrastive_loss = self.simclr_criterion(features, target_Q=target_Q)
-                    # self.weight = self.init_weight
-                else:
-                    contrastive_loss = self.simclr_criterion(features)
-                self.regularization_loss = contrastive_loss.item()
-                critic_loss += self.weight*contrastive_loss
 
         logger.log('train_critic/loss', critic_loss, step)
 
@@ -551,27 +418,9 @@ class DRQAgent(object):
         critic_loss.backward()
         self.critic_optimizer.step()
 
-        if regularization in {5}:
-            # update attention module in actor
-            utils.soft_update_params(self.critic.encoder.CBAMs, self.actor.encoder.CBAMs, tau=1)
-
         self.critic.log(logger, step)
 
     def update_actor_and_alpha(self, obs, obs_aug, logger, step, regularization, num_train_steps):
-        # if regularization == 10:
-        #     # detach conv filters, so we don't update them with the actor loss
-        #     # use the averaged embedding
-        #     embedding = self.actor.encoder(obs, detach=True)
-        #     embedding_aug = self.actor.encoder(obs_aug, detach=True)
-        #     averaged_embedding = (embedding+embedding_aug)/2
-        #     dist = self.actor(averaged_embedding, detach_encoder=True, with_embedding=True)
-        #     action = dist.rsample()
-        #     log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-        #     # detach conv filters, so we don't update them with the actor loss
-        #     actor_Q1, actor_Q2 = self.critic(averaged_embedding, action, detach_encoder=True, with_embedding=True)
-        #
-        #     actor_Q = torch.min(actor_Q1, actor_Q2)
-
         # detach conv filters, so we don't update them with the actor loss
         dist = self.actor(obs, detach_encoder=True)
         action = dist.rsample()
@@ -628,11 +477,13 @@ class SupConLoss(nn.Module):
     """Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf.
     It also supports the unsupervised contrastive loss in SimCLR"""
     def __init__(self, temperature=0.07, contrast_mode='all',
-                 base_temperature=0.07):
+                 base_temperature=0.07, n_clusters=50):
         super(SupConLoss, self).__init__()
         self.temperature = temperature
         self.contrast_mode = contrast_mode
         self.base_temperature = base_temperature
+
+        self.kmeans = KMeans(n_clusters=n_clusters, random_state=0)
 
     def forward(self, features, labels=None, mask=None, target_Q=None):
         """Compute loss for model. If both `labels` and `mask` are None,
@@ -649,6 +500,12 @@ class SupConLoss(nn.Module):
         device = (torch.device('cuda')
                   if features.is_cuda
                   else torch.device('cpu'))
+
+        if target_Q is not None and labels is None:
+            target_Q = target_Q.reshape([-1, 1])
+            target_Q_np = target_Q.cpu().numpy()
+            self.kmeans.fit(target_Q_np)
+            labels = torch.tensor(self.kmeans.labels_)
 
         if len(features.shape) < 3:
             raise ValueError('`features` needs to be [bsz, n_views, ...],'
@@ -681,16 +538,16 @@ class SupConLoss(nn.Module):
             raise ValueError('Unknown mode: {}'.format(self.contrast_mode))
 
         # calculate the weight
-        if target_Q is not None:
-            target_Q = target_Q.reshape([-1, 1])
-            target_Q_diff_abs = torch.abs(target_Q - target_Q.T).repeat(anchor_count, contrast_count).to(device)
-            max_Q_diff, _ = torch.max(target_Q_diff_abs, dim=1, keepdim=True)
-            # weight = torch.exp(target_Q_diff_abs-max_Q_diff.detach())
-            weight = torch.exp(target_Q_diff_abs / (max_Q_diff.detach()))
-            # weight = torch.log(target_Q_diff_abs+1)
-            # weight = target_Q_diff_abs + 1
-        else:
-            weight = torch.ones([batch_size*anchor_count, batch_size*anchor_count]).to(device)
+        # if target_Q is not None:
+        #     target_Q = target_Q.reshape([-1, 1])
+        #     target_Q_diff_abs = torch.abs(target_Q - target_Q.T).repeat(anchor_count, contrast_count).to(device)
+        #     max_Q_diff, _ = torch.max(target_Q_diff_abs, dim=1, keepdim=True)
+        #     # weight = torch.exp(target_Q_diff_abs-max_Q_diff.detach())
+        #     weight = torch.exp(target_Q_diff_abs / (max_Q_diff.detach()))
+        #     # weight = torch.log(target_Q_diff_abs+1)
+        #     # weight = target_Q_diff_abs + 1
+        # else:
+        #     weight = torch.ones([batch_size*anchor_count, batch_size*anchor_count]).to(device)
 
         # compute logits
         anchor_dot_contrast = torch.div(
@@ -712,7 +569,7 @@ class SupConLoss(nn.Module):
         mask = mask * logits_mask
 
         # compute log_prob
-        exp_logits = torch.exp(logits*weight) * logits_mask
+        exp_logits = torch.exp(logits) * logits_mask
         log_prob = logits - torch.log(exp_logits.sum(1, keepdim=True))
 
         # compute mean of log-likelihood over positive
@@ -721,5 +578,31 @@ class SupConLoss(nn.Module):
         # loss
         loss = - (self.temperature / self.base_temperature) * mean_log_prob_pos
         loss = loss.view(anchor_count, batch_size).mean()
+
+        return loss
+
+
+class QRegularizedLoss(nn.Module):
+    def __init__(self, device):
+        super(QRegularizedLoss, self).__init__()
+        self.device = device
+        self.mse = nn.MSELoss()
+
+    def forward(self, features, features_aug, features_target, features_aug_target, target_Q, regularization):
+        feature = F.normalize(torch.concat((features, features_aug), dim=0), dim=-1)
+        feature_target = F.normalize(torch.concat((features_target, features_aug_target), dim=0), dim=-1)
+        dot_contrast = torch.matmul(feature, feature_target.T)
+
+        target_Q = target_Q.reshape([-1, 1])
+        target_Q_diff_abs = torch.abs(target_Q - target_Q.T).repeat(2, 2).to(self.device)
+        max_diff = torch.max(target_Q_diff_abs[0, :])
+
+        if regularization == 4:
+            similarity = 1 - torch.square(target_Q_diff_abs/max_diff)
+        elif regularization == 5:
+            similarity = 1 / (torch.log(target_Q_diff_abs + 1) + 1)
+        elif regularization == 6:
+            similarity = 1 / (target_Q_diff_abs + 1)
+        loss = self.mse(dot_contrast, similarity)
 
         return loss

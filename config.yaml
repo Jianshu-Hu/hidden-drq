@@ -17,13 +17,17 @@ seed: 1
 # channel spatial attention module
 CBAM: false
 # hidden layer regularization
-regularization: 0
+regularization: 1
 # data augmentation
 data_aug: 0
 # init weight for regularization loss
 init_weight: 0.1
 # hidden dim
 hidden_dim: 1024
+# num filters in encoder
+num_filters: 32
+# num clusters for clustering target Q values
+n_clusters: 50
 
 # eval
 eval_frequency: 5000
@@ -62,6 +66,7 @@ agent:
     critic_target_update_frequency: 2
     batch_size: ${batch_size}
     init_weight: ${init_weight}
+    n_clusters: ${n_clusters}
 
 critic:
   class: drq.Critic
@@ -87,6 +92,7 @@ encoder:
       feature_dim: 50
       add_attention_module: ${CBAM}
       image_pad: ${image_pad}
+      num_filters: ${num_filters}
 
 
 # hydra configuration

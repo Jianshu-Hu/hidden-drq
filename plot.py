@@ -109,7 +109,7 @@ folders_26 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_ini
               'drq+gaussian_blur_3_2_5+contra_loss_hidden_256','drq+gaussian_blur_3_2_5+crop+contra_loss_hidden_256']
 
 folders_28 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
-              'drq+exp_div_max_contra_loss_hidden_256', 'drq+init_weight_005_log_contra_loss_hidden_256',
+              'drq+exp_div_max_contra_loss_hidden_256', 'drq+init_weight_005_no_scheduler_log_contra_loss_hidden_256',
               'drq+exp_minus_max_contra_loss_hidden_256',
               'drq+Q_diff_contra_loss_hidden_256']
 folders_30 = ['drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256', 'drq+log_contra_loss_hidden_256',
@@ -132,6 +132,32 @@ folders_29 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_ini
               'drq+proj_512+simclr_on_third_second_to_last+simclr_on_last+hidden_256',
               'drq+init_weight_015_simclr_on_second_to_last+simclr_on_last+hidden_256',
               'drq+init_weight_005_simclr_on_second_to_last+simclr_on_last+hidden_256']
+folders_34 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+log_q_regularized_similarity_init_weight_1_hidden_256',
+              'drq+log_q_regularized_similarity_init_weight_05_hidden_256',
+              'drq+log_q_regularized_similarity_init_weight_15_hidden_256',
+              'drq+log_q_regularized_similarity_init_weight_1_hidden_128',
+              'drq+last_conv_proj+log_q_regularized_similarity_init_weight_1_hidden_256',
+              'drq+q_regularized_similarity_init_weight_1_hidden_256',
+              'drq+q_regularized_similarity_init_weight_1_hidden_128']
+folders_35 = ['drq', 'drq_hidden_dim_256', 'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+label_q_div_1_contra_loss_init_weight_01_hidden_256',
+              'drq+label_q_div_05_contra_loss_init_weight_01_hidden_256',
+              'drq+label_100_cluster_contra_loss_init_weight_01_hidden_256']
+
+folders_36 = ['drq', 'drq_hidden_dim_256', 'drq_hidden_dim_128',
+              'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
+              'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_128',
+              'drq+init_weight_005_simclr_on_second_to_last+simclr_on_last+hidden_256',
+              'drq+init_weight_005_simclr_on_second_to_last+simclr_on_last+hidden_128',
+              'drq+init_weight_005_simclr_on_second_to_last+simclr_on_last+conv_24_hidden_128']
+
+folders_37 = ['drq', 'drq_new_last_conv_stride_2', 'drq_new_last_conv_stride_2+contra_loss',
+              'drq_new_last_conv_stride_2+q_regularized_similarity_init_weight_1',
+              'drq_new_last_conv_stride_2+log_q_regularized_similarity_init_weight_1',
+              'drq_new_last_conv_stride_2+label_50_cluster_contra_loss_init_weight_01',
+              'drq_new_last_conv_stride_2+label_25_cluster_contra_loss_init_weight_01',
+              'drq_new_last_conv_stride_2+label_10_cluster_contra_loss_init_weight_01']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
@@ -162,8 +188,17 @@ folders_10 = ['drq', 'regularization_l2_weight_1']
 folders_24 = ['drq', 'drq_hidden_256', 'drq_hidden_128',
               'drq+contra_loss_hidden_256', 'drq+contra_loss_hidden_128']
 
+folders_38 = ['drq', 'drq_new_last_conv_stride_2',
+              'drq_new_last_conv_stride_2+label_50_cluster_contra_loss_init_weight_01+original_aug']
+
 prefix_5 = 'saved_runs/pendulum/'
 folders_11 = ['drq', 'attention_regularization_last_layer']
+
+prefix_6 = 'saved_runs/hopper/'
+folders_33 = ['drq_original', 'drq_original_with_cuda_deterministic',
+              'drq_new_last_conv_stride_2_with_cuda_deterministic', 'drq', 'drq_hidden_256', 'drq_hidden_128',
+              'drq+contra_loss_hidden_256',
+              'drq+contra_loss_hidden_128']
 
 # 11.7
 # plot_several_folders(prefix=prefix_1, folders=folders_1, title='cartpole')
@@ -212,12 +247,21 @@ folders_11 = ['drq', 'attention_regularization_last_layer']
 # 12.12
 # plot_several_folders(prefix=prefix_1, folders=folders_27, title='cartpole_contra_loss')
 # plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_spatial')
-plot_several_folders(prefix=prefix_2, folders=folders_28, title='cheetah_Q_contrastive_loss')
-plot_several_folders(prefix=prefix_2, folders=folders_30, title='cheetah_Q_log_tune')
-plot_several_folders(prefix=prefix_2, folders=folders_31, title='cheetah_Q_exp_minus_max_tune')
-plot_several_folders(prefix=prefix_2, folders=folders_32, title='cheetah_Q_exp_div_max_tune')
-plot_several_folders(prefix=prefix_2, folders=folders_29, title='cheetah_multi_level')
+# plot_several_folders(prefix=prefix_2, folders=folders_28, title='cheetah_Q_contrastive_loss')
+# plot_several_folders(prefix=prefix_2, folders=folders_30, title='cheetah_Q_log_tune')
+# plot_several_folders(prefix=prefix_2, folders=folders_31, title='cheetah_Q_exp_minus_max_tune')
+# plot_several_folders(prefix=prefix_2, folders=folders_32, title='cheetah_Q_exp_div_max_tune')
 
 # 12.19
+plot_several_folders(prefix=prefix_2, folders=folders_29, title='cheetah_multi_level')
+plot_several_folders(prefix=prefix_2, folders=folders_36, title='cheetah_multi_level_128')
+plot_several_folders(prefix=prefix_2, folders=folders_37, title='cheetah_new_conv')
+plot_several_folders(prefix=prefix_2, folders=folders_34, title='cheetah_Q_regularized_loss')
+plot_several_folders(prefix=prefix_2, folders=folders_35, title='cheetah_Q_label_contra_loss')
+
+plot_several_folders(prefix=prefix_6, folders=folders_33, title='hopper_contra_loss')
+
+plot_several_folders(prefix=prefix_4, folders=folders_38, title='walker_walk_new_conv')
+
 
 

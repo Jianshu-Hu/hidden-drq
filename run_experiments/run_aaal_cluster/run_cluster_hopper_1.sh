@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=drq
+tag=drq_my_code_with_cuda_deterministic
 seed=1
 
 echo "start running $tag with seed $seed"

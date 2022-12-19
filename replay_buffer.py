@@ -16,8 +16,12 @@ class ReplayBuffer(object):
         self.capacity = capacity
         self.device = device
 
-        self.aug_pad_crop = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]), padding=image_pad,
-                                                              padding_mode='edge')
+        self.aug_pad_crop = nn.Sequential(
+           nn.ReplicationPad2d(image_pad),
+           kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+
+        # self.aug_pad_crop = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]), padding=image_pad,
+        #                                                       padding_mode='edge')
         self.aug_pad_crop_zoom_out = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]), padding=10,
                                                  padding_mode='edge')
         self.aug_crop = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]))
