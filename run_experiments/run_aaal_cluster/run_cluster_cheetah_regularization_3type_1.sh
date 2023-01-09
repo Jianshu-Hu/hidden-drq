@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=drq+q_regularized_similarity_type_3
+tag=drq+q_regularized_similarity_type_3+without_scheduler
 seed=1
 
 echo "start running $tag with seed $seed"

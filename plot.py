@@ -158,6 +158,21 @@ folders_37 = ['drq', 'drq_new_last_conv_stride_2', 'drq_new_last_conv_stride_2+c
               'drq_new_last_conv_stride_2+label_50_cluster_contra_loss_init_weight_01',
               'drq_new_last_conv_stride_2+label_25_cluster_contra_loss_init_weight_01',
               'drq_new_last_conv_stride_2+label_10_cluster_contra_loss_init_weight_01']
+prefix_2_1 = 'saved_runs/cheetah_new/'
+folders_39 = ['drq', 'drq+contra_loss',
+              'drq+contra_loss+without_scheduler',
+              'drq+label_10_cluster_contra_loss',
+              'drq+label_25_cluster_contra_loss',
+              'drq+label_25_cluster_contra_loss+without_scheduler',
+              'drq+label_50_cluster_contra_loss']
+folders_42 = ['drq',
+              'drq+q_regularized_similarity_type_1',
+              'drq+q_regularized_similarity_type_1+without_scheduler',
+              'drq+q_regularized_similarity_type_1_max_so_far+without_scheduler',
+              'drq+q_regularized_similarity_type_2',
+              'drq+q_regularized_similarity_type_2+without_scheduler',
+              'drq+q_regularized_similarity_type_3',
+              'drq+q_regularized_similarity_type_3+without_scheduler']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
@@ -182,11 +197,66 @@ folders_21 = ['drq', 'drq_hidden_512', 'drq_hidden_256', 'drq_hidden_128', 'drq+
               'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_256',
               'drq+contra_loss_cosine_scheduler_init_weight_01_hidden_128']
 
+prefix_3_1 = 'saved_runs/reacher_hard_new/'
+folders_41 = ['drq', 'drq+contra_loss',
+              'drq+label_25_cluster_contra_loss',
+              'drq+q_regularized_similarity_type_1',
+              'drq+q_regularized_similarity_type_2',
+              'drq+q_regularized_similarity_type_3']
+
 prefix_4 = 'saved_runs/walker_walk/'
 folders_9 = ['drq', 'attention_regularization_all_layers', 'attention_regularization_last_layer']
 folders_10 = ['drq', 'regularization_l2_weight_1']
 folders_24 = ['drq', 'drq_hidden_256', 'drq_hidden_128',
               'drq+contra_loss_hidden_256', 'drq+contra_loss_hidden_128']
+prefix_4_1 = 'saved_runs/walker_walk_new/'
+folders_40 = ['drq', 'drq+contra_loss',
+              'drq+label_25_cluster_contra_loss',
+              'drq+q_regularized_similarity_type_1',
+              'drq+q_regularized_similarity_type_1_beta',
+              'drq+q_regularized_similarity_type_2',
+              'drq+q_regularized_similarity_type_3',
+              'drq+q_regularized_similarity_type_4',
+              'drq+q_regularized_similarity_type_4_without_square',]
+
+folders_43 = ['drq',
+              'drq+q_regularized_similarity_type_2',
+              'drq+q_regularization_8',
+              'drq+q_regularization_8_decay_faster',
+              'drq+q_regularization_8_with_tanh',
+              'drq+q_regularization_9',
+              'drq+q_regularization_12',
+              'drq+q_regularization_14']
+
+folders_44 = ['drq',
+              'drq+q_regularized_similarity_type_2',
+              'drq+q_regularization_10',
+              'drq+q_regularization_11',
+              'drq+q_regularization_11_decay_faster',
+              'drq+q_regularization_11_with_tanh',
+              'drq+q_regularization_13',
+              'drq+q_regularization_15',
+              'drq+q_regularization_15_decay_faster',
+              'drq+q_regularization_16']
+
+folders_45 = ['drq',
+              'drq+q_regularized_similarity_type_2',
+              'drq+q_regularization_20',
+              'drq+q_regularization_21',
+              'drq+q_regularization_22',
+              'drq+q_regularization_23',
+              'drq+q_regularization_20_max_update_slower',
+              'drq+q_regularization_21_max_update_slower',
+              'drq+q_regularization_22_max_update_slower',
+              'drq+q_regularization_23_max_update_slower']
+
+folders_46 = ['drq', 'drq_larger_diff', 'drq_larger_error',
+              'drq_smaller_diff_target_larger_error_critic',
+              'drq_larger_diff_target_larger_error_critic',
+              'drq_smaller_error_target_larger_diff_critic',
+              'drq_smaller_error_target_larger_error_critic',
+              'drq_average_all_target_larger_diff_critic',
+              'drq_3_aug_smaller_error_target_larger_diff_critic']
 
 folders_38 = ['drq', 'drq_new_last_conv_stride_2',
               'drq_new_last_conv_stride_2+label_50_cluster_contra_loss_init_weight_01+original_aug']
@@ -253,15 +323,26 @@ folders_33 = ['drq_original', 'drq_original_with_cuda_deterministic',
 # plot_several_folders(prefix=prefix_2, folders=folders_32, title='cheetah_Q_exp_div_max_tune')
 
 # 12.19
-plot_several_folders(prefix=prefix_2, folders=folders_29, title='cheetah_multi_level')
-plot_several_folders(prefix=prefix_2, folders=folders_36, title='cheetah_multi_level_128')
-plot_several_folders(prefix=prefix_2, folders=folders_37, title='cheetah_new_conv')
-plot_several_folders(prefix=prefix_2, folders=folders_34, title='cheetah_Q_regularized_loss')
-plot_several_folders(prefix=prefix_2, folders=folders_35, title='cheetah_Q_label_contra_loss')
+# plot_several_folders(prefix=prefix_2, folders=folders_29, title='cheetah_multi_level')
+# plot_several_folders(prefix=prefix_2, folders=folders_36, title='cheetah_multi_level_128')
+# plot_several_folders(prefix=prefix_2, folders=folders_37, title='cheetah_new_conv')
+# plot_several_folders(prefix=prefix_2, folders=folders_34, title='cheetah_Q_regularized_loss')
+# plot_several_folders(prefix=prefix_2, folders=folders_35, title='cheetah_Q_label_contra_loss')
+#
+# plot_several_folders(prefix=prefix_6, folders=folders_33, title='hopper_contra_loss')
+#
+# plot_several_folders(prefix=prefix_4, folders=folders_38, title='walker_walk_new_conv')
 
-plot_several_folders(prefix=prefix_6, folders=folders_33, title='hopper_contra_loss')
+# 12.26
+# plot_several_folders(prefix=prefix_2_1, folders=folders_39, title='cheetah_new_contra_loss')
+# plot_several_folders(prefix=prefix_2_1, folders=folders_42, title='cheetah_new_Q_regularization_loss')
+# plot_several_folders(prefix=prefix_4_1, folders=folders_40, title='walker_walk_new')
+# plot_several_folders(prefix=prefix_3_1, folders=folders_41, title='reacher_hard_new')
 
-plot_several_folders(prefix=prefix_4, folders=folders_38, title='walker_walk_new_conv')
+# 1.9
+plot_several_folders(prefix=prefix_4_1, folders=folders_43, title='walker_walk_Q_regularized_loss_1')
+plot_several_folders(prefix=prefix_4_1, folders=folders_44, title='walker_walk_Q_regularized_loss_2')
+plot_several_folders(prefix=prefix_4_1, folders=folders_45, title='walker_walk_Q_regularized_loss_3')
 
-
+plot_several_folders(prefix=prefix_4_1, folders=folders_46, title='walker_walk_better_aug')
 

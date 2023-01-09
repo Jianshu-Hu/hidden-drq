@@ -297,9 +297,13 @@ class DRQAgent(object):
         # set target entropy to -|A|
         self.target_entropy = -action_shape[0]
 
+        # parameter for regularization
+        self.beta = torch.tensor([1.0]).to(device)
+        self.beta.requires_grad = True
+
         # optimizers
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
+        self.critic_optimizer = torch.optim.Adam(list(self.critic.parameters())+[self.beta],
                                                  lr=lr)
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=lr)
 
@@ -360,14 +364,40 @@ class DRQAgent(object):
             target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob
             target_Q = reward + (not_done * self.discount * target_V)
 
-            dist_aug = self.actor(next_obs_aug)
-            next_action_aug = dist_aug.rsample()
-            log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1, keepdim=True)
-            target_Q1, target_Q2 = self.critic_target(next_obs_aug, next_action_aug)
-            target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
+            dist = self.actor(next_obs_aug)
+            next_action = dist.rsample()
+            log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+            target_Q1, target_Q2 = self.critic_target(next_obs_aug, next_action)
+            target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob
             target_Q_aug = reward + (not_done * self.discount * target_V)
 
             target_Q = (target_Q + target_Q_aug) / 2
+
+            # target_Q_aug_list = []
+            # target_Q_error_list = []
+            # target_Q_diff_list = []
+            # for aug_num in range(len(next_obs_aug)):
+            #     dist_aug = self.actor(next_obs_aug[aug_num])
+            #     next_action_aug = dist_aug.rsample()
+            #     log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1, keepdim=True)
+            #     target_Q1, target_Q2 = self.critic_target(next_obs_aug[aug_num], next_action_aug)
+            #     target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
+            #
+            #     target_Q_aug_i = reward + (not_done * self.discount * target_V)
+            #     target_Q_error_i = torch.mean(torch.abs(target_Q1-target_Q2))
+            #     target_Q_diff_i = torch.mean(torch.abs(target_Q_aug_i-target_Q))
+            #     target_Q_aug_list.append(target_Q_aug_i)
+            #     target_Q_error_list.append(target_Q_error_i)
+            #     target_Q_diff_list.append(target_Q_diff_i)
+            #
+            # min_target_Q_error = min(target_Q_error_list)
+            # index_min_error = target_Q_error_list.index(min_target_Q_error)
+            # target_Q_aug = target_Q_aug_list[index_min_error]
+            # target_Q = (target_Q + target_Q_aug) / 2
+            #
+            # max_target_Q_diff = max(target_Q_diff_list)
+            # index_max_diff = target_Q_diff_list.index(max_target_Q_diff)
+
 
         # get current Q estimates
         current_Q1, current_Q2 = self.critic(obs, action)
@@ -387,12 +417,13 @@ class DRQAgent(object):
             features = torch.cat((torch.unsqueeze(features1, dim=1), torch.unsqueeze(features2, dim=1)), dim=1)
             if regularization == 3:
                 contrastive_loss = self.simclr_criterion(features, target_Q=target_Q)
-                # self.weight = self.init_weight
             else:
                 contrastive_loss = self.simclr_criterion(features)
             self.regularization_loss = contrastive_loss.item()
+            # self.weight = self.init_weight
             critic_loss += self.weight * contrastive_loss
-        if regularization in {4, 5, 6}:
+        if regularization in {4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+                              20, 21, 22, 23}:
             with torch.no_grad():
                 features_target = self.critic_target.encoder(obs)
                 features_aug_target = self.critic_target.encoder(obs_aug)
@@ -403,15 +434,21 @@ class DRQAgent(object):
             #                   self.cosine_similarity_loss(features_aug, features_target)
             # regularization_loss = self.mse(features, features_aug_target) \
             #           + self.mse(features_aug, features_target)
-            regularization_loss = self.q_regularized_loss(features, features_aug,
+            regularization_loss, target_Q_max = self.q_regularized_loss(features, features_aug,
                                                           features_target, features_aug_target, target_Q,
-                                                          regularization)
+                                                          regularization, self.beta)
             self.regularization_loss = regularization_loss.item()
+            # self.weight = self.init_weight
             critic_loss += self.weight*regularization_loss
 
         logger.log('train_critic/loss', critic_loss, step)
 
         logger.log('train_critic/regularization_loss', self.regularization_loss, step)
+
+        logger.log('train_critic/regularization_beta', self.beta, step)
+
+        if (regularization >= 4) and (regularization < 30):
+            logger.log('train_critic/target_Q_max', target_Q_max, step)
 
         # Optimize the critic
         self.critic_optimizer.zero_grad()
@@ -420,7 +457,7 @@ class DRQAgent(object):
 
         self.critic.log(logger, step)
 
-    def update_actor_and_alpha(self, obs, obs_aug, logger, step, regularization, num_train_steps):
+    def update_actor_and_alpha(self, obs, logger, step, num_train_steps):
         # detach conv filters, so we don't update them with the actor loss
         dist = self.actor(obs, detach_encoder=True)
         action = dist.rsample()
@@ -456,8 +493,8 @@ class DRQAgent(object):
         logger.log('train_alpha/weight_value', self.weight, step)
 
     def update(self, replay_buffer, logger, step, regularization, CBAM, num_train_steps, data_aug):
-        obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
-            self.batch_size, CBAM, data_aug)
+        obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug \
+            = replay_buffer.sample(self.batch_size, data_aug)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
@@ -465,7 +502,7 @@ class DRQAgent(object):
                            next_obs_aug, not_done, logger, step, regularization)
 
         if step % self.actor_update_frequency == 0:
-            self.update_actor_and_alpha(obs, obs_aug, logger, step, regularization, num_train_steps)
+            self.update_actor_and_alpha(obs, logger, step, num_train_steps)
 
         if step % self.critic_target_update_frequency == 0:
             utils.soft_update_params(self.critic, self.critic_target,
@@ -587,22 +624,104 @@ class QRegularizedLoss(nn.Module):
         super(QRegularizedLoss, self).__init__()
         self.device = device
         self.mse = nn.MSELoss()
+        self.max_diff = 0
 
-    def forward(self, features, features_aug, features_target, features_aug_target, target_Q, regularization):
-        feature = F.normalize(torch.concat((features, features_aug), dim=0), dim=-1)
-        feature_target = F.normalize(torch.concat((features_target, features_aug_target), dim=0), dim=-1)
-        dot_contrast = torch.matmul(feature, feature_target.T)
+        self.target_Q_max = 0
 
-        target_Q = target_Q.reshape([-1, 1])
-        target_Q_diff_abs = torch.abs(target_Q - target_Q.T).repeat(2, 2).to(self.device)
-        max_diff = torch.max(target_Q_diff_abs[0, :])
+    def forward(self, features, features_aug, features_target, features_aug_target, target_Q, regularization, beta):
+        if regularization in {8, 9, 10, 11, 12, 13, 14, 15, 16}:
+            batch_size = features.size(0)
+            perm = np.random.permutation(batch_size)
+            features2 = features[perm]
+            target_Q = target_Q.reshape([-1, 1])
+            if regularization in {8, 9, 12, 14}:
+                feature_dist = F.smooth_l1_loss(features, features2, reduction='none').sum(-1)
+                if regularization in {8, 14}:
+                    Q_dist = torch.square(target_Q - target_Q[perm])
+                elif regularization == 9:
+                    Q_dist = F.smooth_l1_loss(target_Q, target_Q[perm], reduction='none')
+                elif regularization == 12:
+                    Q_dist = torch.square(target_Q - target_Q[perm])*beta
 
-        if regularization == 4:
-            similarity = 1 - torch.square(target_Q_diff_abs/max_diff)
-        elif regularization == 5:
-            similarity = 1 / (torch.log(target_Q_diff_abs + 1) + 1)
-        elif regularization == 6:
-            similarity = 1 / (target_Q_diff_abs + 1)
-        loss = self.mse(dot_contrast, similarity)
+                if regularization == 14:
+                    feature_dist_2 = F.smooth_l1_loss(features, features_aug, reduction='none').sum(-1)
+                    Q_dist_2 = torch.zeros(target_Q.size()).to(self.device)
+                    loss = self.mse(feature_dist, Q_dist) + self.mse(feature_dist_2, Q_dist_2)
+                else:
+                    loss = self.mse(feature_dist, Q_dist)
+            elif regularization in {10, 11, 13, 15, 16}:
+                feature_dist = torch.square(features-features2).sum(-1)
+                if regularization in {10, 15}:
+                    Q_dist = torch.square(target_Q - target_Q[perm])
+                elif regularization in {11, 16}:
+                    Q_dist = F.smooth_l1_loss(target_Q, target_Q[perm], reduction='none')
+                elif regularization == 13:
+                    Q_dist = F.smooth_l1_loss(target_Q, target_Q[perm], reduction='none')*beta
 
-        return loss
+                if regularization == 15:
+                    feature_dist_2 = torch.square(features-features_aug).sum(-1)
+                    Q_dist_2 = torch.zeros(target_Q.size()).to(self.device)
+                    loss = self.mse(feature_dist, Q_dist) + self.mse(feature_dist_2, Q_dist_2)
+                elif regularization == 16:
+                    feature_dist_2 = torch.square(features-features_aug).sum(-1)
+                    Q_dist_2 = torch.zeros(target_Q.size()).to(self.device)
+                    loss = self.mse(feature_dist, Q_dist) + self.mse(feature_dist_2, Q_dist_2)
+                else:
+                    loss = self.mse(feature_dist, Q_dist)
+        elif regularization in {20, 21, 22, 23}:
+            features = F.normalize(features, dim=-1)
+            features_aug = F.normalize(features_aug, dim=-1)
+
+            batch_size = features.size(0)
+            perm = np.random.permutation(batch_size)
+            features2 = features[perm]
+            target_Q = target_Q.reshape([-1, 1])
+
+            target_Q_max = torch.max(target_Q)
+            self.target_Q_max = 0.01*target_Q_max.item()+0.99*self.target_Q_max
+
+            if regularization in {20, 21}:
+                feature_dist = F.smooth_l1_loss(features, features2, reduction='none').sum(-1)
+                if regularization == 20:
+                    Q_dist = torch.square(target_Q/self.target_Q_max - target_Q[perm]/self.target_Q_max)
+                elif regularization == 21:
+                    Q_dist = F.smooth_l1_loss(target_Q/self.target_Q_max,
+                                              target_Q[perm]/self.target_Q_max, reduction='none')
+
+                loss = self.mse(feature_dist, Q_dist)
+            elif regularization in {22, 23}:
+                feature_dist = torch.square(features-features2).sum(-1)
+                if regularization == 22:
+                    Q_dist = torch.square(target_Q/self.target_Q_max - target_Q[perm]/self.target_Q_max)
+                elif regularization == 23:
+                    Q_dist = F.smooth_l1_loss(target_Q/self.target_Q_max,
+                                              target_Q[perm]/self.target_Q_max, reduction='none')
+
+                loss = self.mse(feature_dist, Q_dist)
+
+        else:
+            feature = F.normalize(torch.concat((features, features_aug), dim=0), dim=-1)
+            feature_target = F.normalize(torch.concat((features_target, features_aug_target), dim=0), dim=-1)
+            dot_contrast = torch.matmul(feature, feature_target.T)
+
+            target_Q = target_Q.reshape([-1, 1])
+            target_Q_diff_abs = torch.abs(target_Q - target_Q.T).repeat(2, 2).to(self.device)
+            log_diff = torch.log(target_Q_diff_abs + 1)
+            if regularization in {4, 5, 6}:
+                max_diff = torch.max(target_Q_diff_abs[0, :])
+            elif regularization == 7:
+                max_diff = torch.max(log_diff[0, :])
+            # if max_diff > self.max_diff:
+            #     self.max_diff = max_diff
+
+            if regularization == 4:
+                similarity = 1 - torch.square(target_Q_diff_abs*beta)
+            elif regularization == 5:
+                similarity = 1 / (torch.log(target_Q_diff_abs + 1) + 1)
+            elif regularization == 6:
+                similarity = 1 / (target_Q_diff_abs + 1)
+            elif regularization == 7:
+                similarity = 1 - log_diff / max_diff
+            loss = self.mse(dot_contrast, similarity)
+
+        return loss, self.target_Q_max

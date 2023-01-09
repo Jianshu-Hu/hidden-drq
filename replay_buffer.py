@@ -42,8 +42,6 @@ class ReplayBuffer(object):
         self.idx = 0
         self.full = False
 
-        self.image_count = 0
-
     def __len__(self):
         return self.capacity if self.full else self.idx
 
@@ -58,9 +56,7 @@ class ReplayBuffer(object):
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
-
-    def sample(self, batch_size, CBAM=False, data_aug=0):
-        self.image_count += 1
+    def sample(self, batch_size, data_aug=0):
         idxs = np.random.randint(0,
                                  self.capacity if self.full else self.idx,
                                  size=batch_size)
@@ -69,19 +65,20 @@ class ReplayBuffer(object):
         next_obses = self.next_obses[idxs]
         obses_aug = obses.copy()
         next_obses_aug = next_obses.copy()
+        # obses_aug_2 = obses.copy()
+        # next_obses_aug_2 = next_obses.copy()
+        # obses_aug_3 = obses.copy()
+        # next_obses_aug_3 = next_obses.copy()
 
         obses = torch.as_tensor(obses, device=self.device).float()
-
-        # for i in range(batch_size):
-        #     repeat = int(obses.shape[1] / 3)
-        #     for j in range(repeat):
-        #         save_image(obses[i, 3*j:3*(j+1)]/255.0, '/bigdata/users/jhu/hidden-drq/outputs/saved_img/'
-        #                    +str(i)+'_'+str(j)+'.png')
-        # raise ValueError('Done sampling images')
         next_obses = torch.as_tensor(next_obses, device=self.device).float()
         obses_aug = torch.as_tensor(obses_aug, device=self.device).float()
-        next_obses_aug = torch.as_tensor(next_obses_aug,
-                                         device=self.device).float()
+        next_obses_aug = torch.as_tensor(next_obses_aug, device=self.device).float()
+        # obses_aug_2 = torch.as_tensor(obses_aug_2, device=self.device).float()
+        # next_obses_aug_2 = torch.as_tensor(next_obses_aug_2, device=self.device).float()
+        # obses_aug_3 = torch.as_tensor(obses_aug_3, device=self.device).float()
+        # next_obses_aug_3 = torch.as_tensor(next_obses_aug_3, device=self.device).float()
+
         actions = torch.as_tensor(self.actions[idxs], device=self.device)
         rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
         not_dones_no_max = torch.as_tensor(self.not_dones_no_max[idxs],
@@ -95,74 +92,51 @@ class ReplayBuffer(object):
         # 4: remove background
         # 5: add noise to background + padding, random crop
         # 6: zoom out + random crop
-        if not CBAM:
-            if data_aug == 0:
-                obses = self.aug_pad_crop(obses)
-                next_obses = self.aug_pad_crop(next_obses)
-            elif data_aug == 1:
-                obses = F.interpolate(obses, mode='bilinear', scale_factor=1.05)
-                obses = self.aug_crop(obses)
-                next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=1.05)
-                next_obses = self.aug_crop(next_obses)
-            elif data_aug == 2:
-                repeat = int(obses.shape[1]/3)
-                for i in range(repeat):
-                    obses[:, 3*i:3*(i+1)] = self.color_jitter(obses[:, 3*i:3*(i+1)])
-                    next_obses[:, 3*i:3*(i+1)] = self.color_jitter(next_obses[:, 3*i:3*(i+1)])
-                obses = self.aug_pad_crop(obses)
-                next_obses = self.aug_pad_crop(next_obses)
-            elif data_aug == 3:
-                obses = self.aug_pad_crop(obses)
-                obses = self.aug_rotation(obses)
-                next_obses = self.aug_pad_crop(next_obses)
-                next_obses = self.aug_rotation(next_obses)
-            elif data_aug == 4:
-                obses = self.background_aug.remove_background(obses)
-                next_obses = self.background_aug.remove_background(next_obses)
-            elif data_aug == 5:
-                obses = self.background_aug.add_noise_to_background(obses)
-                next_obses = self.background_aug.add_noise_to_background(next_obses)
-                obses = self.aug_pad_crop(obses)
-                next_obses = self.aug_pad_crop(next_obses)
-            elif data_aug == 6:
-                obses = F.interpolate(obses, mode='bilinear', scale_factor=0.8)
-                obses = self.aug_pad_crop_zoom_out(obses)
-                next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=0.8)
-                next_obses = self.aug_pad_crop_zoom_out(next_obses)
-
         if data_aug == 0:
+            obses = self.aug_pad_crop(obses)
+            next_obses = self.aug_pad_crop(next_obses)
+
             obses_aug = self.aug_pad_crop(obses_aug)
             next_obses_aug = self.aug_pad_crop(next_obses_aug)
+
+            # obses_aug_2 = self.aug_pad_crop(obses_aug_2)
+            # next_obses_aug_2 = self.aug_pad_crop(next_obses_aug_2)
+            #
+            # obses_aug_3 = self.aug_pad_crop(obses_aug_3)
+            # next_obses_aug_3 = self.aug_pad_crop(next_obses_aug_3)
+
+            # obses_aug = [obses_aug_1, obses_aug_2, obses_aug_3]
+            # next_obses_aug = [next_obses_aug_1, next_obses_aug_2, next_obses_aug_3]
         elif data_aug == 1:
-            obses_aug = F.interpolate(obses_aug, mode='bilinear', scale_factor=1.2)
-            obses_aug = self.aug_crop(obses_aug)
-            next_obses_aug = F.interpolate(next_obses_aug, mode='bilinear', scale_factor=1.2)
-            next_obses_aug = self.aug_crop(next_obses_aug)
+            obses = F.interpolate(obses, mode='bilinear', scale_factor=1.05)
+            obses = self.aug_crop(obses)
+            next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=1.05)
+            next_obses = self.aug_crop(next_obses)
         elif data_aug == 2:
-            repeat = int(obses.shape[1] / 3)
+            repeat = int(obses.shape[1]/3)
             for i in range(repeat):
-                obses_aug[:, 3*i:3*(i+1)] = self.color_jitter(obses_aug[:, 3*i:3*(i+1)])
-                next_obses_aug[:, 3*i:3*(i+1)] = self.color_jitter(next_obses_aug[:, 3*i:3*(i+1)])
-            obses_aug = self.aug_pad_crop(obses_aug)
-            next_obses_aug = self.aug_pad_crop(next_obses_aug)
+                obses[:, 3*i:3*(i+1)] = self.color_jitter(obses[:, 3*i:3*(i+1)])
+                next_obses[:, 3*i:3*(i+1)] = self.color_jitter(next_obses[:, 3*i:3*(i+1)])
+            obses = self.aug_pad_crop(obses)
+            next_obses = self.aug_pad_crop(next_obses)
         elif data_aug == 3:
-            obses_aug = self.aug_pad_crop(obses_aug)
-            obses_aug = self.aug_rotation(obses_aug)
-            next_obses_aug = self.aug_pad_crop(next_obses_aug)
-            next_obses_aug = self.aug_rotation(next_obses_aug)
+            obses = self.aug_pad_crop(obses)
+            obses = self.aug_rotation(obses)
+            next_obses = self.aug_pad_crop(next_obses)
+            next_obses = self.aug_rotation(next_obses)
         elif data_aug == 4:
-            obses_aug = self.background_aug.remove_background(obses_aug)
-            next_obses_aug = self.background_aug.remove_background(next_obses_aug)
+            obses = self.background_aug.remove_background(obses)
+            next_obses = self.background_aug.remove_background(next_obses)
         elif data_aug == 5:
-            obses_aug = self.background_aug.add_noise_to_background(obses_aug)
-            next_obses_aug = self.background_aug.add_noise_to_background(next_obses_aug)
-            obses_aug = self.aug_pad_crop(obses_aug)
-            next_obses_aug = self.aug_pad_crop(next_obses_aug)
+            obses = self.background_aug.add_noise_to_background(obses)
+            next_obses = self.background_aug.add_noise_to_background(next_obses)
+            obses = self.aug_pad_crop(obses)
+            next_obses = self.aug_pad_crop(next_obses)
         elif data_aug == 6:
-            obses_aug = F.interpolate(obses_aug, mode='bilinear', scale_factor=0.8)
-            obses_aug = self.aug_pad_crop_zoom_out(obses_aug)
-            next_obses_aug = F.interpolate(next_obses_aug, mode='bilinear', scale_factor=0.8)
-            next_obses_aug = self.aug_pad_crop_zoom_out(next_obses_aug)
+            obses = F.interpolate(obses, mode='bilinear', scale_factor=0.8)
+            obses = self.aug_pad_crop_zoom_out(obses)
+            next_obses = F.interpolate(next_obses, mode='bilinear', scale_factor=0.8)
+            next_obses = self.aug_pad_crop_zoom_out(next_obses)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug
 

@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=drq+contra_loss
+tag=drq+contra_loss+without_scheduler
 seed=3
 
 echo "start running $tag with seed $seed"
