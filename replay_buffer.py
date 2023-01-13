@@ -25,7 +25,7 @@ class ReplayBuffer(object):
         self.aug_pad_crop_zoom_out = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]), padding=10,
                                                  padding_mode='edge')
         self.aug_crop = torchvision.transforms.RandomCrop(size=(obs_shape[-1], obs_shape[-1]))
-        self.aug_rotation = torchvision.transforms.RandomRotation(degrees=5.0)
+        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=5.0)
 
         self.color_jitter = torchvision.transforms.ColorJitter(brightness=0.1)
         # , contrast=0.3, saturation=0.3, hue=0.3)
@@ -120,10 +120,11 @@ class ReplayBuffer(object):
             obses = self.aug_pad_crop(obses)
             next_obses = self.aug_pad_crop(next_obses)
         elif data_aug == 3:
-            obses = self.aug_pad_crop(obses)
             obses = self.aug_rotation(obses)
-            next_obses = self.aug_pad_crop(next_obses)
             next_obses = self.aug_rotation(next_obses)
+
+            obses_aug = self.aug_rotation(obses_aug)
+            next_obses_aug = self.aug_rotation(next_obses_aug)
         elif data_aug == 4:
             obses = self.background_aug.remove_background(obses)
             next_obses = self.background_aug.remove_background(next_obses)

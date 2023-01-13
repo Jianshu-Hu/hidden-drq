@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=drq_3_aug_smaller_error_target_larger_diff_critic
+tag=drq_test_tsne
 seed=3
 
 echo "start running $tag with seed $seed"

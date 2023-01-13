@@ -261,6 +261,9 @@ folders_46 = ['drq', 'drq_larger_diff', 'drq_larger_error',
 folders_38 = ['drq', 'drq_new_last_conv_stride_2',
               'drq_new_last_conv_stride_2+label_50_cluster_contra_loss_init_weight_01+original_aug']
 
+prefix_7 = 'saved_runs/walker_run/'
+folders_47 = ['drq', 'drq_regularization_16']
+
 prefix_5 = 'saved_runs/pendulum/'
 folders_11 = ['drq', 'attention_regularization_last_layer']
 
@@ -345,4 +348,8 @@ plot_several_folders(prefix=prefix_4_1, folders=folders_44, title='walker_walk_Q
 plot_several_folders(prefix=prefix_4_1, folders=folders_45, title='walker_walk_Q_regularized_loss_3')
 
 plot_several_folders(prefix=prefix_4_1, folders=folders_46, title='walker_walk_better_aug')
+
+# 1.16
+plot_several_folders(prefix=prefix_7, folders=folders_47, title='walker_run')
+
 

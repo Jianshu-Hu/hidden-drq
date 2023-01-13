@@ -8,6 +8,8 @@ import random
 import kornia
 
 from sklearn.cluster import KMeans
+from sklearn import manifold
+import matplotlib.pyplot as plt
 
 from torchvision.utils import save_image
 
@@ -372,6 +374,22 @@ class DRQAgent(object):
             target_Q_aug = reward + (not_done * self.discount * target_V)
 
             target_Q = (target_Q + target_Q_aug) / 2
+
+            # visualize the embedding
+            if step % 2500 == 0:
+                t_sne = manifold.TSNE(n_components=2, init='pca', random_state=0)
+                X1 = self.critic.encoder(obs).cpu().numpy()
+                X2 = self.critic.encoder(obs_aug).cpu().numpy()
+                Y = t_sne.fit_transform(np.vstack((X1, X2)))
+                # calculate percentage of close samples
+                batch_size = X1.shape[0]
+                distance = np.sqrt(np.sum((Y[:batch_size] - Y[batch_size:]) ** 2, axis=-1))
+                percentage = np.sum((distance < 1)) / batch_size
+                logger.log('train_critic/percentage_close_pairs', percentage, step)
+                # save the projected embedding
+                # np.savez('/bigdata/users/jhu/hidden-drq/outputs/walker_walk_rotate_regularization_'
+                #         + str(regularization) + '_tsne-' + str(step) + '.npz',
+                #          target_Q=target_Q.cpu().numpy(), Y=Y)
 
             # target_Q_aug_list = []
             # target_Q_error_list = []
