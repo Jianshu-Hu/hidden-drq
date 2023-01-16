@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq
 
-tag=drq_rotation_test_tsne_regularization_1
+tag=drq_rotation
 seed=1
 
 echo "start running $tag with seed $seed"

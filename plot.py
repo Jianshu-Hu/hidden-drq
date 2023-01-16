@@ -174,6 +174,7 @@ folders_42 = ['drq',
               'drq+q_regularized_similarity_type_3',
               'drq+q_regularized_similarity_type_3+without_scheduler']
 
+
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_6 = ['drq', 'drq_attention_regularization_all_layers', 'drq_attention_regularization_last_layer',
              'attention_regularization_last_layer_random_weight', 'attention_regularization_all_layers_random_weight',
@@ -260,6 +261,8 @@ folders_46 = ['drq', 'drq_larger_diff', 'drq_larger_error',
 
 folders_38 = ['drq', 'drq_new_last_conv_stride_2',
               'drq_new_last_conv_stride_2+label_50_cluster_contra_loss_init_weight_01+original_aug']
+
+folders_48 = ['drq', 'drq_rotation', 'drq_rotation+regularization_16']
 
 prefix_7 = 'saved_runs/walker_run/'
 folders_47 = ['drq', 'drq_regularization_16']
@@ -351,5 +354,6 @@ plot_several_folders(prefix=prefix_4_1, folders=folders_46, title='walker_walk_b
 
 # 1.16
 plot_several_folders(prefix=prefix_7, folders=folders_47, title='walker_run')
+plot_several_folders(prefix=prefix_4_1, folders=folders_48, title='walker_walk_rotation')
 
 
