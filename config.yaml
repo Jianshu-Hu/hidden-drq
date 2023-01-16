@@ -1,3 +1,4 @@
+tag: test
 # env
 env: cartpole_swingup
 # IMPORTANT: if action_repeat is used the effective number of env steps needs to be
@@ -18,7 +19,7 @@ num_eval_episodes: 10
 # misc
 log_frequency_step: 10000
 log_save_tb: true
-save_video: true
+save_video: false
 device: cuda
 # observation
 image_size: 84
