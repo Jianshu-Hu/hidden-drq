@@ -9,13 +9,15 @@ import utils
 
 class ReplayBuffer(object):
     """Buffer to store environment transitions."""
-    def __init__(self, obs_shape, action_shape, capacity, image_pad, device):
+    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug):
         self.capacity = capacity
         self.device = device
 
         self.aug_trans = nn.Sequential(
             nn.ReplicationPad2d(image_pad),
             kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+
+        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=5.0)
 
         self.obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
         self.next_obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
@@ -26,6 +28,8 @@ class ReplayBuffer(object):
 
         self.idx = 0
         self.full = False
+
+        self.data_aug = data_aug
 
     def __len__(self):
         return self.capacity if self.full else self.idx
@@ -61,10 +65,17 @@ class ReplayBuffer(object):
         not_dones_no_max = torch.as_tensor(self.not_dones_no_max[idxs],
                                            device=self.device)
 
-        obses = self.aug_trans(obses)
-        next_obses = self.aug_trans(next_obses)
+        if self.data_aug == 1:
+            obses = self.aug_trans(obses)
+            next_obses = self.aug_trans(next_obses)
 
-        obses_aug = self.aug_trans(obses_aug)
-        next_obses_aug = self.aug_trans(next_obses_aug)
+            obses_aug = self.aug_trans(obses_aug)
+            next_obses_aug = self.aug_trans(next_obses_aug)
+        elif self.data_aug == 2:
+            obses = self.aug_rotation(obses)
+            next_obses = self.aug_rotation(next_obses)
+
+            obses_aug = self.aug_rotation(obses_aug)
+            next_obses_aug = self.aug_rotation(next_obses_aug)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug

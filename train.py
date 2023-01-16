@@ -82,7 +82,8 @@ class Workspace(object):
         self.replay_buffer = ReplayBuffer(self.env.observation_space.shape,
                                           self.env.action_space.shape,
                                           cfg.replay_buffer_capacity,
-                                          self.cfg.image_pad, self.device)
+                                          self.cfg.image_pad, self.device,
+                                          self.cfg.data_aug)
 
         self.video_recorder = VideoRecorder(
             self.work_dir if cfg.save_video else None)

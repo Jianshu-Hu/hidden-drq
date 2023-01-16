@@ -13,6 +13,8 @@ num_train_iters: 1
 num_seed_steps: 1000
 replay_buffer_capacity: 100000
 seed: 1
+
+data_aug: 1
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
