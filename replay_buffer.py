@@ -19,6 +19,8 @@ class ReplayBuffer(object):
 
         self.aug_rotation = kornia.augmentation.RandomRotation(degrees=5.0)
 
+        self.aug_h_flip = kornia.augmentation.RandomHorizontalFlip(p=0.1)
+
         self.obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
         self.next_obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
@@ -77,5 +79,11 @@ class ReplayBuffer(object):
 
             obses_aug = self.aug_rotation(obses_aug)
             next_obses_aug = self.aug_rotation(next_obses_aug)
+        elif self.data_aug == 3:
+            obses = self.aug_h_flip(obses)
+            next_obses = self.aug_h_flip(next_obses)
+
+            obses_aug = self.aug_h_flip(obses_aug)
+            next_obses_aug = self.aug_h_flip(next_obses_aug)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug
