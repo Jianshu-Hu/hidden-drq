@@ -11,14 +11,21 @@ import hydra
 
 class Encoder(nn.Module):
     """Convolutional encoder for image-based observations."""
-    def __init__(self, obs_shape, feature_dim):
+    def __init__(self, obs_shape, feature_dim, regularization):
         super().__init__()
 
         assert len(obs_shape) == 3
         self.num_layers = 4
         self.num_filters = 32
         self.output_dim = 35
-        self.output_logits = False
+        if regularization == 2:
+            # with the regularization loss, we do not want to add the tanh layer at the end
+            self.output_logits = True
+        elif regularization == 1:
+            # original drq
+            self.output_logits = False
+        else:
+            self.output_logits = False
         self.feature_dim = feature_dim
 
         self.convs = nn.ModuleList([
@@ -166,7 +173,7 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size):
+                 critic_target_update_frequency, batch_size, num_train_steps):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -199,6 +206,11 @@ class DRQAgent(object):
         self.train()
         self.critic_target.train()
 
+        # regularization
+        self.q_regularized_loss = QRegularizedLoss(device=self.device)
+        self.init_weight = 1.0
+        self.num_train_steps = num_train_steps
+
     def train(self, training=True):
         self.training = training
         self.actor.train(training)
@@ -218,7 +230,7 @@ class DRQAgent(object):
         return utils.to_np(action[0])
 
     def update_critic(self, obs, obs_aug, action, reward, next_obs,
-                      next_obs_aug, not_done, logger, step):
+                      next_obs_aug, not_done, logger, step, regularization):
         with torch.no_grad():
             dist = self.actor(next_obs)
             next_action = dist.rsample()
@@ -249,6 +261,18 @@ class DRQAgent(object):
 
         critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
             Q2_aug, target_Q)
+
+        # add regularization loss
+        if regularization == 2:
+            features = self.critic.encoder(obs)
+            features_aug = self.critic.encoder(obs_aug)
+
+            regularization_loss = self.q_regularized_loss(features, features_aug, target_Q)
+            weight = self.init_weight/2*(1+math.cos(math.pi * step / self.num_train_steps))
+            critic_loss += weight*regularization_loss
+
+            logger.log('train_critic/weight', weight, step)
+            logger.log('train_critic/regularization_loss', weight * regularization_loss, step)
 
         logger.log('train_critic/loss', critic_loss, step)
 
@@ -290,14 +314,14 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-    def update(self, replay_buffer, logger, step):
+    def update(self, replay_buffer, logger, step, regularization):
         obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
             self.batch_size)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
         self.update_critic(obs, obs_aug, action, reward, next_obs,
-                           next_obs_aug, not_done, logger, step)
+                           next_obs_aug, not_done, logger, step, regularization)
 
         if step % self.actor_update_frequency == 0:
             self.update_actor_and_alpha(obs, logger, step)
@@ -305,3 +329,25 @@ class DRQAgent(object):
         if step % self.critic_target_update_frequency == 0:
             utils.soft_update_params(self.critic, self.critic_target,
                                      self.critic_tau)
+
+
+class QRegularizedLoss(nn.Module):
+    def __init__(self, device):
+        super(QRegularizedLoss, self).__init__()
+        self.device = device
+        self.mse = nn.MSELoss()
+
+    def forward(self, features, features_aug, target_Q):
+        batch_size = features.size(0)
+        perm = np.random.permutation(batch_size)
+        features2 = features[perm]
+        target_Q = target_Q.reshape([-1, 1])
+
+        feature_dist = torch.square(features-features2).sum(-1)
+        Q_dist = F.smooth_l1_loss(target_Q, target_Q[perm], reduction='none')
+
+        feature_dist_2 = torch.square(features-features_aug).sum(-1)
+        Q_dist_2 = torch.zeros(target_Q.size()).to(self.device)
+
+        loss = self.mse(feature_dist, Q_dist) + self.mse(feature_dist_2, Q_dist_2)
+        return loss

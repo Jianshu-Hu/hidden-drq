@@ -15,6 +15,7 @@ replay_buffer_capacity: 100000
 seed: 1
 
 data_aug: 1
+regularization: 1
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -51,6 +52,7 @@ agent:
     critic_tau: 0.01
     critic_target_update_frequency: 2
     batch_size: ${batch_size}
+    num_train_steps: ${num_train_steps}
 
 critic:
   class: drq.Critic
@@ -74,6 +76,7 @@ encoder:
   params:
       obs_shape: ${agent.params.obs_shape}
       feature_dim: 50
+      regularization: ${regularization}
 
 
 # hydra configuration
