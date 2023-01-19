@@ -2,7 +2,7 @@
 
 cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
-conda activate drq
+conda activate drq_test
 
 tag=drq+cycnn
 seed=3
