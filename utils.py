@@ -13,6 +13,8 @@ import torch.nn.functional as F
 from skimage.util.shape import view_as_windows
 from torch import distributions as pyd
 
+import cv2 as cv
+
 
 class eval_mode(object):
     def __init__(self, *models):
@@ -169,3 +171,26 @@ class SquashedNormal(pyd.transformed_distribution.TransformedDistribution):
         for tr in self.transforms:
             mu = tr(mu)
         return mu
+
+
+def polar_transform(images, transform_type='linearpolar'):
+    """
+    This function takes multiple images, and apply polar coordinate conversion to it.
+    """
+
+    (N, C, H, W) = images.shape
+
+    for i in range(images.shape[0]):
+
+        img = images[i].numpy()  # [C,H,W]
+        img = np.transpose(img, (1, 2, 0))  # [H,W,C]
+
+        if transform_type == 'logpolar':
+            img = cv.logPolar(img, (H // 2, W // 2), W / math.log(W / 2), cv.WARP_FILL_OUTLIERS).reshape(H, W, C)
+        elif transform_type == 'linearpolar':
+            img = cv.linearPolar(img, (H // 2, W // 2), W / 2, cv.WARP_FILL_OUTLIERS).reshape(H, W, C)
+        img = np.transpose(img, (2, 0, 1))
+
+        images[i] = torch.from_numpy(img)
+
+    return images

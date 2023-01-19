@@ -8,10 +8,12 @@ import math
 import utils
 import hydra
 
+from cyconvlayer import CyConv2d
+
 
 class Encoder(nn.Module):
     """Convolutional encoder for image-based observations."""
-    def __init__(self, obs_shape, feature_dim, regularization):
+    def __init__(self, obs_shape, feature_dim, regularization, cycnn, device):
         super().__init__()
 
         assert len(obs_shape) == 3
@@ -28,20 +30,39 @@ class Encoder(nn.Module):
             self.output_logits = False
         self.feature_dim = feature_dim
 
-        self.convs = nn.ModuleList([
-            nn.Conv2d(obs_shape[0], self.num_filters, 3, stride=2),
-            nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
-            nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
-            nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1)
-        ])
+        self.cycnn = cycnn
+        self.device = device
 
-        self.head = nn.Sequential(
-            nn.Linear(self.num_filters * 35 * 35, self.feature_dim),
-            nn.LayerNorm(self.feature_dim))
+        if self.cycnn:
+            self.convs = nn.ModuleList([
+                CyConv2d(obs_shape[0], self.num_filters, kernel_size=3, stride=2, padding=1),
+                CyConv2d(self.num_filters, self.num_filters, kernel_size=3, stride=1, padding=1),
+                CyConv2d(self.num_filters, self.num_filters, kernel_size=3, stride=1, padding=1),
+                CyConv2d(self.num_filters, self.num_filters, kernel_size=3, stride=1, padding=1)
+            ])
+
+            self.head = nn.Sequential(
+                nn.Linear(self.num_filters * 42 * 42, self.feature_dim),
+                nn.LayerNorm(self.feature_dim))
+        else:
+            self.convs = nn.ModuleList([
+                nn.Conv2d(obs_shape[0], self.num_filters, 3, stride=2),
+                nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
+                nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
+                nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1)
+            ])
+
+            self.head = nn.Sequential(
+                nn.Linear(self.num_filters * 35 * 35, self.feature_dim),
+                nn.LayerNorm(self.feature_dim))
 
         self.outputs = dict()
 
     def forward_conv(self, obs):
+        if self.cycnn:
+            # polar transform all the inputs
+            obs = utils.polar_transform(obs.cpu())
+            obs = obs.to(self.device)
         obs = obs / 255.
         self.outputs['obs'] = obs
 

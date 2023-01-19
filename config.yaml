@@ -13,9 +13,10 @@ num_train_iters: 1
 num_seed_steps: 1000
 replay_buffer_capacity: 100000
 seed: 1
-
+# new
 data_aug: 1
 regularization: 1
+cycnn: false
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -77,7 +78,8 @@ encoder:
       obs_shape: ${agent.params.obs_shape}
       feature_dim: 50
       regularization: ${regularization}
-
+      cycnn: ${cycnn}
+      device: ${device}
 
 # hydra configuration
 hydra:
