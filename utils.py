@@ -173,24 +173,21 @@ class SquashedNormal(pyd.transformed_distribution.TransformedDistribution):
         return mu
 
 
-def polar_transform(images, transform_type='linearpolar'):
+def polar_transform(image, transform_type='linearpolar'):
     """
-    This function takes multiple images, and apply polar coordinate conversion to it.
+    This function takes one image, and apply polar coordinate conversion to it.
     """
+    (C, H, W) = image.shape
 
-    (N, C, H, W) = images.shape
+    # img = images.numpy()  # [C,H,W]
+    img = np.transpose(image, (1, 2, 0))  # [H,W,C]
 
-    for i in range(images.shape[0]):
+    if transform_type == 'logpolar':
+        img = cv.logPolar(img, (H // 2, W // 2), W / math.log(W / 2), cv.WARP_FILL_OUTLIERS).reshape(H, W, C)
+    elif transform_type == 'linearpolar':
+        img = cv.linearPolar(img, (H // 2, W // 2), W / 2, cv.WARP_FILL_OUTLIERS).reshape(H, W, C)
+    img = np.transpose(img, (2, 0, 1))
 
-        img = images[i].numpy()  # [C,H,W]
-        img = np.transpose(img, (1, 2, 0))  # [H,W,C]
+    # images[i] = torch.from_numpy(img)
 
-        if transform_type == 'logpolar':
-            img = cv.logPolar(img, (H // 2, W // 2), W / math.log(W / 2), cv.WARP_FILL_OUTLIERS).reshape(H, W, C)
-        elif transform_type == 'linearpolar':
-            img = cv.linearPolar(img, (H // 2, W // 2), W / 2, cv.WARP_FILL_OUTLIERS).reshape(H, W, C)
-        img = np.transpose(img, (2, 0, 1))
-
-        images[i] = torch.from_numpy(img)
-
-    return images
+    return img

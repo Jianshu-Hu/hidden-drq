@@ -8,8 +8,6 @@ import math
 import utils
 import hydra
 
-from cyconvlayer import CyConv2d
-
 
 class Encoder(nn.Module):
     """Convolutional encoder for image-based observations."""
@@ -34,6 +32,7 @@ class Encoder(nn.Module):
         self.device = device
 
         if self.cycnn:
+            from cyconvlayer import CyConv2d
             self.convs = nn.ModuleList([
                 CyConv2d(obs_shape[0], self.num_filters, kernel_size=3, stride=2, padding=1),
                 CyConv2d(self.num_filters, self.num_filters, kernel_size=3, stride=1, padding=1),
@@ -60,9 +59,7 @@ class Encoder(nn.Module):
 
     def forward_conv(self, obs):
         if self.cycnn:
-            # polar transform all the inputs
-            obs = utils.polar_transform(obs.cpu())
-            obs = obs.to(self.device)
+            obs = obs.contiguous()
         obs = obs / 255.
         self.outputs['obs'] = obs
 
