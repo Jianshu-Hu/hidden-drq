@@ -60,6 +60,7 @@ class Encoder(nn.Module):
     def forward_conv(self, obs):
         if self.cycnn:
             obs = obs.contiguous()
+        obs = obs.to(self.device)
         obs = obs / 255.
         self.outputs['obs'] = obs
 
@@ -200,6 +201,7 @@ class DRQAgent(object):
         self.critic_target_update_frequency = critic_target_update_frequency
         self.batch_size = batch_size
 
+        self.encoder_cfg = encoder_cfg
         self.actor = hydra.utils.instantiate(actor_cfg).to(self.device)
 
         self.critic = hydra.utils.instantiate(critic_cfg).to(self.device)
@@ -239,7 +241,9 @@ class DRQAgent(object):
         return self.log_alpha.exp()
 
     def act(self, obs, sample=False):
-        obs = torch.FloatTensor(obs).to(self.device)
+        if self.encoder_cfg.params.cycnn:
+            obs = utils.polar_transform(obs)
+        obs = torch.FloatTensor(obs)
         obs = obs.unsqueeze(0)
         dist = self.actor(obs)
         action = dist.sample() if sample else dist.mean

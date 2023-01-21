@@ -83,7 +83,8 @@ class Workspace(object):
                                           self.env.action_space.shape,
                                           cfg.replay_buffer_capacity,
                                           self.cfg.image_pad, self.device,
-                                          self.cfg.data_aug)
+                                          self.cfg.data_aug,
+                                          self.cfg.cycnn)
 
         self.video_recorder = VideoRecorder(
             self.work_dir if cfg.save_video else None)
@@ -133,9 +134,6 @@ class Workspace(object):
                                 self.step)
 
                 obs = self.env.reset()
-                if self.cfg.cycnn:
-                    # polar transform the observation
-                    obs = utils.polar_transform(obs)
                 done = False
                 episode_reward = 0
                 episode_step = 0
@@ -157,10 +155,6 @@ class Workspace(object):
                                       self.step, self.cfg.regularization)
 
             next_obs, reward, done, info = self.env.step(action)
-
-            if self.cfg.cycnn:
-                # polar transform the observation
-                next_obs = utils.polar_transform(next_obs)
 
             # allow infinite bootstrap
             done = float(done)
