@@ -48,12 +48,14 @@ def plot_several_folders(prefix, folders, num_runs=3, label_list=[], plot_or_sav
 
 
 prefix_1 = 'saved_runs/cartpole/'
-prefix_2 = 'saved_runs/cheetah/'
+
+prefix_2 = 'saved_runs/cheetah_run/'
+folders_5 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
-folders_3 = ['drq', 'drq+cycnn']
+folders_3 = ['drq', 'drq+rotation', 'drq+cycnn', 'drq+rotation+cycnn']
 
 prefix_4 = 'saved_runs/walker_walk/'
 prefix_5 = 'saved_runs/pendulum/'
@@ -146,6 +148,7 @@ folders_4 = ['drq', 'drq+cycnn']
 # plot_several_folders(prefix=prefix_4_1, folders=folders_48, title='walker_walk_rotation')
 
 # 2.
+plot_several_folders(prefix=prefix_2, folders=folders_5, title='cheetah_run_aug_regu')
 plot_several_folders(prefix=prefix_3, folders=folders_1, title='reacher_hard_aug_regu')
 # plot_several_folders(prefix=prefix_3, folders=folders_3, title='reacher_hard_cycnn')
 plot_several_folders(prefix=prefix_7, folders=folders_2, title='walker_run_aug_regu')
