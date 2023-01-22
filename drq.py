@@ -58,6 +58,8 @@ class Encoder(nn.Module):
         self.outputs = dict()
 
     def forward_conv(self, obs):
+        if self.cycnn:
+            obs = obs.contiguous()
         obs = obs / 255.
         self.outputs['obs'] = obs
 
@@ -242,8 +244,6 @@ class DRQAgent(object):
             obs = utils.polar_transform(obs)
         obs = torch.FloatTensor(obs).to(self.device)
         obs = obs.unsqueeze(0)
-        if self.encoder_cfg.params.cycnn:
-            obs = obs.contiguous()
         dist = self.actor(obs)
         action = dist.sample() if sample else dist.mean
         action = action.clamp(*self.action_range)

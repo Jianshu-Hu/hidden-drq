@@ -50,7 +50,8 @@ def plot_several_folders(prefix, folders, num_runs=3, label_list=[], plot_or_sav
 prefix_1 = 'saved_runs/cartpole/'
 
 prefix_2 = 'saved_runs/cheetah_run/'
-folders_5 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization']
+folders_5 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
+             'drq+hflip', 'drq+hflip+regularization']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',

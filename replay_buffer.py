@@ -99,10 +99,10 @@ class ReplayBuffer(object):
             obses_aug = utils.polar_transform(obses_aug)
             next_obses_aug = utils.polar_transform(next_obses_aug)
 
-            obses = obses.to(self.device).contiguous()
-            next_obses = next_obses.to(self.device).contiguous()
+            obses = obses.to(self.device)
+            next_obses = next_obses.to(self.device)
 
-            obses_aug = obses_aug.to(self.device).contiguous()
-            next_obses_aug = next_obses_aug.to(self.device).contiguous()
+            obses_aug = obses_aug.to(self.device)
+            next_obses_aug = next_obses_aug.to(self.device)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug
