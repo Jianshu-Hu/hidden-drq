@@ -58,10 +58,16 @@ class ReplayBuffer(object):
         obses_aug = obses.copy()
         next_obses_aug = next_obses.copy()
 
-        obses = torch.as_tensor(obses, device=self.device).float()
-        next_obses = torch.as_tensor(next_obses, device=self.device).float()
-        obses_aug = torch.as_tensor(obses_aug, device=self.device).float()
-        next_obses_aug = torch.as_tensor(next_obses_aug, device=self.device).float()
+        if self.cycnn:
+            obses = torch.as_tensor(obses).float()
+            next_obses = torch.as_tensor(next_obses).float()
+            obses_aug = torch.as_tensor(obses_aug).float()
+            next_obses_aug = torch.as_tensor(next_obses_aug).float()
+        else:
+            obses = torch.as_tensor(obses, device=self.device).float()
+            next_obses = torch.as_tensor(next_obses, device=self.device).float()
+            obses_aug = torch.as_tensor(obses_aug, device=self.device).float()
+            next_obses_aug = torch.as_tensor(next_obses_aug, device=self.device).float()
 
         actions = torch.as_tensor(self.actions[idxs], device=self.device)
         rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
@@ -87,16 +93,16 @@ class ReplayBuffer(object):
             next_obses_aug = self.aug_h_flip(next_obses_aug)
 
         if self.cycnn:
-            obses = utils.polar_transform(obses.cpu())
-            next_obses = utils.polar_transform(next_obses.cpu())
+            obses = utils.polar_transform(obses)
+            next_obses = utils.polar_transform(next_obses)
 
-            obses_aug = utils.polar_transform(obses_aug.cpu())
-            next_obses_aug = utils.polar_transform(next_obses_aug.cpu())
+            obses_aug = utils.polar_transform(obses_aug)
+            next_obses_aug = utils.polar_transform(next_obses_aug)
 
-            obses = obses.to(self.device)
-            next_obses = next_obses.to(self.device)
+            obses = obses.to(self.device).contiguous()
+            next_obses = next_obses.to(self.device).contiguous()
 
-            obses_aug = obses_aug.to(self.device)
-            next_obses_aug = next_obses_aug.to(self.device)
+            obses_aug = obses_aug.to(self.device).contiguous()
+            next_obses_aug = next_obses_aug.to(self.device).contiguous()
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug

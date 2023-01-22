@@ -55,7 +55,7 @@ folders_5 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regulari
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
-folders_3 = ['drq', 'drq+rotation', 'drq+cycnn', 'drq+rotation+cycnn']
+folders_3 = ['drq+batch_256', 'drq+cycnn+batch_256', 'drq+rotation+cycnn+batch_256']
 
 prefix_4 = 'saved_runs/walker_walk/'
 prefix_5 = 'saved_runs/pendulum/'
@@ -150,6 +150,6 @@ folders_4 = ['drq', 'drq+cycnn']
 # 2.
 plot_several_folders(prefix=prefix_2, folders=folders_5, title='cheetah_run_aug_regu')
 plot_several_folders(prefix=prefix_3, folders=folders_1, title='reacher_hard_aug_regu')
-# plot_several_folders(prefix=prefix_3, folders=folders_3, title='reacher_hard_cycnn')
+plot_several_folders(prefix=prefix_3, folders=folders_3, title='reacher_hard_cycnn')
 plot_several_folders(prefix=prefix_7, folders=folders_2, title='walker_run_aug_regu')
 # plot_several_folders(prefix=prefix_7, folders=folders_4, title='walker_run_cycnn')
