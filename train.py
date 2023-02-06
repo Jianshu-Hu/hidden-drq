@@ -44,6 +44,11 @@ def make_env(cfg):
                        width=cfg.image_size,
                        frame_skip=cfg.action_repeat,
                        camera_id=camera_id)
+    if cfg.black_background:
+        if domain_name in ['acrobat', 'cartpole', 'humanoid', 'pendulum', 'walker']:
+            env.env.physics.named.model.geom_rgba['floor'][3] = 0
+        if domain_name in ['ball_in_cup', 'finger', 'fish', 'reacher', 'swimmer', 'point_mass']:
+            env.env.physics.named.model.geom_rgba['ground'][3] = 0
 
     env = utils.FrameStack(env, k=cfg.frame_stack)
 
@@ -84,7 +89,8 @@ class Workspace(object):
                                           cfg.replay_buffer_capacity,
                                           self.cfg.image_pad, self.device,
                                           self.cfg.data_aug,
-                                          self.cfg.cycnn)
+                                          self.cfg.cycnn,
+                                          self.cfg.degrees)
 
         self.video_recorder = VideoRecorder(
             self.work_dir if cfg.save_video else None)

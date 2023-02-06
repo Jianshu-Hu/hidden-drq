@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import copy
 import math
-
+import kornia
 import utils
 import hydra
 
@@ -191,7 +191,7 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size, num_train_steps):
+                 critic_target_update_frequency, batch_size, num_train_steps, image_pad, data_aug, aug_when_act):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -230,6 +230,17 @@ class DRQAgent(object):
         self.init_weight = 1.0
         self.num_train_steps = num_train_steps
 
+        # data aug
+        self.data_aug = data_aug
+        self.aug_when_act = aug_when_act
+        self.aug_trans = nn.Sequential(
+            nn.ReplicationPad2d(image_pad),
+            kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+
+        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=5.0)
+
+        self.aug_h_flip = kornia.augmentation.RandomHorizontalFlip(p=0.1)
+
     def train(self, training=True):
         self.training = training
         self.actor.train(training)
@@ -244,6 +255,13 @@ class DRQAgent(object):
             obs = utils.polar_transform(obs)
         obs = torch.FloatTensor(obs).to(self.device)
         obs = obs.unsqueeze(0)
+        if self.aug_when_act:
+            if self.data_aug == 1:
+                obs = self.aug_trans(obs)
+            elif self.data_aug == 2:
+                obs = self.aug_rotation(obs)
+            elif self.data_aug == 3:
+                obs = self.aug_h_flip(obs)
         dist = self.actor(obs)
         action = dist.sample() if sample else dist.mean
         action = action.clamp(*self.action_range)
@@ -284,11 +302,11 @@ class DRQAgent(object):
             Q2_aug, target_Q)
 
         # add regularization loss
-        if regularization == 2:
+        if regularization > 1:
             features = self.critic.encoder(obs)
             features_aug = self.critic.encoder(obs_aug)
 
-            regularization_loss = self.q_regularized_loss(features, features_aug, target_Q)
+            regularization_loss = self.q_regularized_loss(features, features_aug, target_Q, regularization)
             weight = self.init_weight/2*(1+math.cos(math.pi * step / self.num_train_steps))
             critic_loss += weight*regularization_loss
 
@@ -358,7 +376,7 @@ class QRegularizedLoss(nn.Module):
         self.device = device
         self.mse = nn.MSELoss()
 
-    def forward(self, features, features_aug, target_Q):
+    def forward(self, features, features_aug, target_Q, regularization):
         batch_size = features.size(0)
         perm = np.random.permutation(batch_size)
         features2 = features[perm]
@@ -370,5 +388,10 @@ class QRegularizedLoss(nn.Module):
         feature_dist_2 = torch.square(features-features_aug).sum(-1)
         Q_dist_2 = torch.zeros(target_Q.size()).to(self.device)
 
-        loss = self.mse(feature_dist, Q_dist) + self.mse(feature_dist_2, Q_dist_2)
+        if regularization == 2:
+            loss = self.mse(feature_dist, Q_dist) + self.mse(feature_dist_2, Q_dist_2)
+        elif regularization == 3:
+            loss = self.mse(feature_dist, Q_dist)
+        elif regularization == 4:
+            loss = self.mse(feature_dist_2, Q_dist_2)
         return loss

@@ -9,7 +9,7 @@ import utils
 
 class ReplayBuffer(object):
     """Buffer to store environment transitions."""
-    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug, cycnn):
+    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug, cycnn, degrees):
         self.capacity = capacity
         self.device = device
 
@@ -17,7 +17,7 @@ class ReplayBuffer(object):
             nn.ReplicationPad2d(image_pad),
             kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
 
-        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=5.0)
+        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=degrees)
 
         self.aug_h_flip = kornia.augmentation.RandomHorizontalFlip(p=0.1)
 
@@ -54,6 +54,8 @@ class ReplayBuffer(object):
                                  size=batch_size)
 
         obses = self.obses[idxs]
+        # np.save('/bigdata/users/jhu/hidden-drq/outputs/obs_black.npy', obses)
+        # raise ValueError('debug')
         next_obses = self.next_obses[idxs]
         obses_aug = obses.copy()
         next_obses_aug = next_obses.copy()

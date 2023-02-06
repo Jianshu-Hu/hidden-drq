@@ -52,11 +52,24 @@ prefix_1 = 'saved_runs/cartpole/'
 prefix_2 = 'saved_runs/cheetah_run/'
 folders_5 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
+folders_7 = ['drq+batch_256', 'drq+rotation+batch_256', 'drq+cycnn+batch_256', 'drq+rotation+cycnn+batch_256']
+folders_10 = ['drq', 'drq+aug_when_act', 'drq+image_pad_6+aug_when_act', 'drq+image_pad_8+aug_when_act']
+folders_13 = ['drq', 'drq+rotation', 'drq+rotation_30', 'drq+rotation_30+aug_when_act',
+              'drq+rotation_90+aug_when_act',
+              'drq+rotation_180+aug_when_act']
+folders_14 = ['drq', 'drq+aug_when_act',
+              'drq+aug_when_act+regularization_only_Q_diff', 'drq+aug_when_act+regularization_only_l2_regu',]
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
-folders_3 = ['drq+batch_256', 'drq+cycnn+batch_256', 'drq+rotation+cycnn+batch_256']
+folders_3 = ['drq+batch_256', 'drq+rotation+batch_256', 'drq+cycnn+batch_256', 'drq+rotation+cycnn+batch_256',
+             'drq+rotation_10+cycnn+batch_256', 'drq+rotation_90+cycnn+batch_256', 'drq+rotation_90+batch_256']
+folders_9 = ['drq', 'drq+rotation', 'drq+rotation+black_background', 'drq+aug_when_act',
+             'drq+aug_when_act+rotation', 'drq+rotation_90', 'drq+rotation_90+aug_when_act',
+             'drq+rotation_180+aug_when_act']
+folders_15 = ['drq', 'drq+rotation_180+aug_when_act', 'drq+rotation_180+aug_when_act+regularization_only_Q_diff',
+              'drq+rotation_180+aug_when_act+regularization_only_l2_regu']
 
 prefix_4 = 'saved_runs/walker_walk/'
 prefix_5 = 'saved_runs/pendulum/'
@@ -66,6 +79,13 @@ prefix_7 = 'saved_runs/walker_run/'
 folders_2 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
 folders_4 = ['drq', 'drq+cycnn']
+folders_11 = ['drq', 'drq+aug_when_act', 'drq+rotation_90+aug_when_act', 'drq+rotation_30+aug_when_act']
+
+prefix_8 = 'saved_runs/ballincup_catch/'
+folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
+             'drq+hflip', 'drq+hflip+regularization']
+folders_8 = ['drq+batch_256', 'drq+rotation+batch_256', 'drq+cycnn+batch_256', 'drq+rotation+cycnn+batch_256']
+folders_12 = ['drq', 'drq+aug_when_act', 'drq+rotation_90+aug_when_act', 'drq+rotation_30+aug_when_act']
 
 
 # 11.7
@@ -148,9 +168,20 @@ folders_4 = ['drq', 'drq+cycnn']
 # plot_several_folders(prefix=prefix_7, folders=folders_47, title='walker_run')
 # plot_several_folders(prefix=prefix_4_1, folders=folders_48, title='walker_walk_rotation')
 
-# 2.
-plot_several_folders(prefix=prefix_2, folders=folders_5, title='cheetah_run_aug_regu')
-plot_several_folders(prefix=prefix_3, folders=folders_1, title='reacher_hard_aug_regu')
+# 1.30
+# plot_several_folders(prefix=prefix_2, folders=folders_5, title='cheetah_run_aug_regu')
+# plot_several_folders(prefix=prefix_2, folders=folders_7, title='cheetah_run_cycnn')
+# plot_several_folders(prefix=prefix_3, folders=folders_1, title='reacher_hard_aug_regu')
+# plot_several_folders(prefix=prefix_7, folders=folders_2, title='walker_run_aug_regu')
+# plot_several_folders(prefix=prefix_8, folders=folders_6, title='ballincup_catch_aug_regu')
+
+# 2.6
+plot_several_folders(prefix=prefix_8, folders=folders_8, title='ballincup_catch_cycnn')
+plot_several_folders(prefix=prefix_3, folders=folders_9, title='reacher_hard_rotation')
 plot_several_folders(prefix=prefix_3, folders=folders_3, title='reacher_hard_cycnn')
-plot_several_folders(prefix=prefix_7, folders=folders_2, title='walker_run_aug_regu')
-# plot_several_folders(prefix=prefix_7, folders=folders_4, title='walker_run_cycnn')
+plot_several_folders(prefix=prefix_2, folders=folders_10, title='cheetah_run_aug_when_act')
+plot_several_folders(prefix=prefix_7, folders=folders_11, title='walker_run_aug_when_act')
+plot_several_folders(prefix=prefix_8, folders=folders_12, title='ballincup_catch_aug_when_act')
+plot_several_folders(prefix=prefix_2, folders=folders_13, title='cheetah_run_rotation')
+plot_several_folders(prefix=prefix_2, folders=folders_14, title='cheetah_run_new_regu')
+plot_several_folders(prefix=prefix_3, folders=folders_15, title='reacher_hard_new_regu')
