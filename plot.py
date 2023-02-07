@@ -59,6 +59,7 @@ folders_13 = ['drq', 'drq+rotation', 'drq+rotation_30', 'drq+rotation_30+aug_whe
               'drq+rotation_180+aug_when_act']
 folders_14 = ['drq', 'drq+aug_when_act',
               'drq+aug_when_act+regularization_only_Q_diff', 'drq+aug_when_act+regularization_only_l2_regu',]
+folders_17 = ['drq', 'drq+aug_when_act', 'drq+aug_when_act_average_2', 'rad', 'rad+aug_when_act']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -70,6 +71,8 @@ folders_9 = ['drq', 'drq+rotation', 'drq+rotation+black_background', 'drq+aug_wh
              'drq+rotation_180+aug_when_act']
 folders_15 = ['drq', 'drq+rotation_180+aug_when_act', 'drq+rotation_180+aug_when_act+regularization_only_Q_diff',
               'drq+rotation_180+aug_when_act+regularization_only_l2_regu']
+folders_16 = ['drq', 'drq+rotation_180', 'drq+rotation_180+aug_when_act',
+              'drq+rotation_180+aug_when_act_average_2', 'rad+rotation_180', 'rad+rotation_180+aug_when_act']
 
 prefix_4 = 'saved_runs/walker_walk/'
 prefix_5 = 'saved_runs/pendulum/'
@@ -80,12 +83,14 @@ folders_2 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regulari
              'drq+hflip', 'drq+hflip+regularization']
 folders_4 = ['drq', 'drq+cycnn']
 folders_11 = ['drq', 'drq+aug_when_act', 'drq+rotation_90+aug_when_act', 'drq+rotation_30+aug_when_act']
+folders_19 = ['drq', 'drq+aug_when_act', 'rad']
 
 prefix_8 = 'saved_runs/ballincup_catch/'
 folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
 folders_8 = ['drq+batch_256', 'drq+rotation+batch_256', 'drq+cycnn+batch_256', 'drq+rotation+cycnn+batch_256']
 folders_12 = ['drq', 'drq+aug_when_act', 'drq+rotation_90+aug_when_act', 'drq+rotation_30+aug_when_act']
+folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 
 
 # 11.7
@@ -176,12 +181,18 @@ folders_12 = ['drq', 'drq+aug_when_act', 'drq+rotation_90+aug_when_act', 'drq+ro
 # plot_several_folders(prefix=prefix_8, folders=folders_6, title='ballincup_catch_aug_regu')
 
 # 2.6
-plot_several_folders(prefix=prefix_8, folders=folders_8, title='ballincup_catch_cycnn')
-plot_several_folders(prefix=prefix_3, folders=folders_9, title='reacher_hard_rotation')
-plot_several_folders(prefix=prefix_3, folders=folders_3, title='reacher_hard_cycnn')
-plot_several_folders(prefix=prefix_2, folders=folders_10, title='cheetah_run_aug_when_act')
-plot_several_folders(prefix=prefix_7, folders=folders_11, title='walker_run_aug_when_act')
-plot_several_folders(prefix=prefix_8, folders=folders_12, title='ballincup_catch_aug_when_act')
-plot_several_folders(prefix=prefix_2, folders=folders_13, title='cheetah_run_rotation')
-plot_several_folders(prefix=prefix_2, folders=folders_14, title='cheetah_run_new_regu')
-plot_several_folders(prefix=prefix_3, folders=folders_15, title='reacher_hard_new_regu')
+# plot_several_folders(prefix=prefix_8, folders=folders_8, title='ballincup_catch_cycnn')
+# plot_several_folders(prefix=prefix_3, folders=folders_9, title='reacher_hard_rotation')
+# plot_several_folders(prefix=prefix_3, folders=folders_3, title='reacher_hard_cycnn')
+# plot_several_folders(prefix=prefix_2, folders=folders_10, title='cheetah_run_aug_when_act')
+# plot_several_folders(prefix=prefix_7, folders=folders_11, title='walker_run_aug_when_act')
+# plot_several_folders(prefix=prefix_8, folders=folders_12, title='ballincup_catch_aug_when_act')
+# plot_several_folders(prefix=prefix_2, folders=folders_13, title='cheetah_run_rotation')
+# plot_several_folders(prefix=prefix_2, folders=folders_14, title='cheetah_run_new_regu')
+# plot_several_folders(prefix=prefix_3, folders=folders_15, title='reacher_hard_new_regu')
+
+# 2.13
+plot_several_folders(prefix=prefix_3, folders=folders_16, title='reacher_hard_rad')
+plot_several_folders(prefix=prefix_2, folders=folders_17, title='cheetah_run_rad')
+plot_several_folders(prefix=prefix_8, folders=folders_18, title='ballincup_catch_rad')
+plot_several_folders(prefix=prefix_7, folders=folders_19, title='walker_walk_rad')

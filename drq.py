@@ -191,7 +191,8 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size, num_train_steps, image_pad, data_aug, aug_when_act):
+                 critic_target_update_frequency, batch_size, num_train_steps, image_pad, data_aug, aug_when_act,
+                 degrees, M):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -233,13 +234,15 @@ class DRQAgent(object):
         # data aug
         self.data_aug = data_aug
         self.aug_when_act = aug_when_act
-        self.aug_trans = nn.Sequential(
+        if self.data_aug == 1:
+            self.aug = nn.Sequential(
             nn.ReplicationPad2d(image_pad),
             kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
-
-        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=5.0)
-
-        self.aug_h_flip = kornia.augmentation.RandomHorizontalFlip(p=0.1)
+        elif self.data_aug == 2:
+            self.aug = kornia.augmentation.RandomRotation(degrees=degrees)
+        elif self.data_aug == 3:
+            self.aug = kornia.augmentation.RandomHorizontalFlip(p=0.1)
+        self.M = M
 
     def train(self, training=True):
         self.training = training
@@ -256,20 +259,22 @@ class DRQAgent(object):
         obs = torch.FloatTensor(obs).to(self.device)
         obs = obs.unsqueeze(0)
         if self.aug_when_act:
-            if self.data_aug == 1:
-                obs = self.aug_trans(obs)
-            elif self.data_aug == 2:
-                obs = self.aug_rotation(obs)
-            elif self.data_aug == 3:
-                obs = self.aug_h_flip(obs)
-        dist = self.actor(obs)
-        action = dist.sample() if sample else dist.mean
-        action = action.clamp(*self.action_range)
+            action_list = []
+            for _ in range(self.M):
+                obs_aug = self.aug(obs)
+                dist = self.actor(obs_aug)
+                action = dist.sample() if sample else dist.mean
+                action_list.append(action)
+            action = (sum(action_list)/self.M).clamp(*self.action_range)
+        else:
+            dist = self.actor(obs)
+            action = dist.sample() if sample else dist.mean
+            action = action.clamp(*self.action_range)
         assert action.ndim == 2 and action.shape[0] == 1
         return utils.to_np(action[0])
 
     def update_critic(self, obs, obs_aug, action, reward, next_obs,
-                      next_obs_aug, not_done, logger, step, regularization):
+                      next_obs_aug, not_done, logger, step, regularization, RAD):
         with torch.no_grad():
             dist = self.actor(next_obs)
             next_action = dist.rsample()
@@ -279,27 +284,31 @@ class DRQAgent(object):
                                  target_Q2) - self.alpha.detach() * log_prob
             target_Q = reward + (not_done * self.discount * target_V)
 
-            dist_aug = self.actor(next_obs_aug)
-            next_action_aug = dist_aug.rsample()
-            log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
-                                                                  keepdim=True)
-            target_Q1, target_Q2 = self.critic_target(next_obs_aug,
-                                                      next_action_aug)
-            target_V = torch.min(
-                target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
-            target_Q_aug = reward + (not_done * self.discount * target_V)
+            if not RAD:
+                # DrQ
+                dist_aug = self.actor(next_obs_aug)
+                next_action_aug = dist_aug.rsample()
+                log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
+                                                                      keepdim=True)
+                target_Q1, target_Q2 = self.critic_target(next_obs_aug,
+                                                          next_action_aug)
+                target_V = torch.min(
+                    target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
+                target_Q_aug = reward + (not_done * self.discount * target_V)
 
-            target_Q = (target_Q + target_Q_aug) / 2
+                target_Q = (target_Q + target_Q_aug) / 2
 
         # get current Q estimates
         current_Q1, current_Q2 = self.critic(obs, action)
         critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
             current_Q2, target_Q)
 
-        Q1_aug, Q2_aug = self.critic(obs_aug, action)
+        if not RAD:
+            # DrQ
+            Q1_aug, Q2_aug = self.critic(obs_aug, action)
 
-        critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
-            Q2_aug, target_Q)
+            critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
+                Q2_aug, target_Q)
 
         # add regularization loss
         if regularization > 1:
@@ -353,14 +362,14 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-    def update(self, replay_buffer, logger, step, regularization):
+    def update(self, replay_buffer, logger, step, regularization, RAD):
         obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
             self.batch_size)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
         self.update_critic(obs, obs_aug, action, reward, next_obs,
-                           next_obs_aug, not_done, logger, step, regularization)
+                           next_obs_aug, not_done, logger, step, regularization, RAD)
 
         if step % self.actor_update_frequency == 0:
             self.update_actor_and_alpha(obs, logger, step)

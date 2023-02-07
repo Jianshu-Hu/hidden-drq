@@ -16,10 +16,12 @@ seed: 1
 # new
 data_aug: 1
 regularization: 1
+RAD: false
 cycnn: false
 aug_when_act: false
 black_background: false
 degrees: 30.0
+M: 1
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -60,6 +62,8 @@ agent:
     image_pad: ${image_pad}
     data_aug: ${data_aug}
     aug_when_act: ${aug_when_act}
+    degrees: ${degrees}
+    M: ${M}
 
 critic:
   class: drq.Critic
