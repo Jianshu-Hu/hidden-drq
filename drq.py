@@ -7,6 +7,10 @@ import math
 import kornia
 import utils
 import hydra
+import os
+
+from sklearn.cluster import KMeans
+from sklearn import manifold
 
 
 class Encoder(nn.Module):
@@ -192,7 +196,7 @@ class DRQAgent(object):
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, num_train_steps, image_pad, data_aug, aug_when_act,
-                 degrees, M):
+                 degrees, M, randnet, visualize, tag, seed):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -239,10 +243,24 @@ class DRQAgent(object):
             nn.ReplicationPad2d(image_pad),
             kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
         elif self.data_aug == 2:
-            self.aug = kornia.augmentation.RandomRotation(degrees=degrees)
+            self.aug_1 = kornia.augmentation.RandomRotation(degrees=[15.0, degrees])
+            self.aug_2 = kornia.augmentation.RandomRotation(degrees=[-degrees, -15.0])
         elif self.data_aug == 3:
             self.aug = kornia.augmentation.RandomHorizontalFlip(p=0.1)
         self.M = M
+        self.randnet = randnet
+        if self.randnet:
+            self.rand_conv = nn.Conv2d(obs_shape[0], obs_shape[0], kernel_size=3, padding='same').to(self.device)
+        self.mse_loss = nn.MSELoss()
+        self.visualize = visualize
+        self.tag = tag
+        self.seed = seed
+        if self.visualize:
+            # reacher
+            self.aug = kornia.augmentation.RandomRotation(degrees=degrees)
+            # cheetah
+            # self.aug = nn.Sequential(nn.ReplicationPad2d(image_pad),
+            #                          kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
 
     def train(self, training=True):
         self.training = training
@@ -258,9 +276,36 @@ class DRQAgent(object):
             obs = utils.polar_transform(obs)
         obs = torch.FloatTensor(obs).to(self.device)
         obs = obs.unsqueeze(0)
-        if self.aug_when_act:
+        if self.randnet:
+            action_list = []
+
+            with torch.no_grad():
+                # if np.random.rand(1) < 0.9:
+                #     torch.nn.init.xavier_normal_(self.rand_conv.weight)
+                #     obs_aug = self.rand_conv(obs)
+                # else:
+                obs_aug = obs
+                dist = self.actor(obs_aug)
+                action = dist.sample() if sample else dist.mean
+                action_list.append(action)
+
+                # if np.random.rand(1) < 0.9:
+                torch.nn.init.xavier_normal_(self.rand_conv.weight)
+                obs_aug = self.rand_conv(obs)
+                # else:
+                #     obs_aug = obs
+                dist = self.actor(obs_aug)
+                action = dist.sample() if sample else dist.mean
+                action_list.append(action)
+            action = (sum(action_list)/2).clamp(*self.action_range)
+        elif self.aug_when_act:
             action_list = []
             for _ in range(self.M):
+                if self.data_aug == 2:
+                    if np.random.rand(1) < 0.5:
+                        self.aug = self.aug_1
+                    else:
+                        self.aug = self.aug_2
                 obs_aug = self.aug(obs)
                 dist = self.actor(obs_aug)
                 action = dist.sample() if sample else dist.mean
@@ -298,17 +343,35 @@ class DRQAgent(object):
 
                 target_Q = (target_Q + target_Q_aug) / 2
 
+        # visualize the embedding
+        if self.visualize:
+            if step % 5000 == 0:
+                t_sne = manifold.TSNE(n_components=2, init='pca', random_state=0)
+                with torch.no_grad():
+                    # temp_obs = self.aug(obs)
+                    # temp_obs_aug = self.aug(obs_aug)
+                    X1 = self.critic.encoder(obs).cpu().numpy()
+                    X2 = self.critic.encoder(obs_aug).cpu().numpy()
+                Y = t_sne.fit_transform(np.vstack((X1, X2)))
+                # save the projected embedding
+                prefix = '/bigdata/users/jhu/hidden-drq/outputs/'
+                path = prefix+self.tag
+                if not os.path.exists(path):
+                    os.mkdir(path)
+                if not os.path.exists(path + '/seed_' + str(self.seed)):
+                    os.mkdir(path + '/seed_' + str(self.seed))
+                np.savez(path + '/seed_' + str(self.seed) + '/tsne-' + str(step) + '.npz',
+                         target_Q=target_Q.cpu().numpy(), Y=Y)
+
         # get current Q estimates
         current_Q1, current_Q2 = self.critic(obs, action)
-        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(
-            current_Q2, target_Q)
+        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
         if not RAD:
             # DrQ
             Q1_aug, Q2_aug = self.critic(obs_aug, action)
 
-            critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(
-                Q2_aug, target_Q)
+            critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q)
 
         # add regularization loss
         if regularization > 1:
@@ -321,6 +384,18 @@ class DRQAgent(object):
 
             logger.log('train_critic/weight', weight, step)
             logger.log('train_critic/regularization_loss', weight * regularization_loss, step)
+
+        # add feature matching loss when using randnet
+        if self.randnet:
+            with torch.no_grad():
+                features = self.critic.encoder(obs)
+            features_aug = self.critic.encoder(obs_aug)
+
+            fm_loss = self.mse_loss(features, features_aug)
+            weight = 0.002
+            critic_loss += weight*fm_loss
+
+            logger.log('train_critic/fm_loss', weight * fm_loss, step)
 
         logger.log('train_critic/loss', critic_loss, step)
 

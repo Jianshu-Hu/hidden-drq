@@ -90,7 +90,8 @@ class Workspace(object):
                                           self.cfg.image_pad, self.device,
                                           self.cfg.data_aug,
                                           self.cfg.cycnn,
-                                          self.cfg.degrees)
+                                          self.cfg.degrees,
+                                          self.cfg.randnet)
 
         self.video_recorder = VideoRecorder(
             self.work_dir if cfg.save_video else None)

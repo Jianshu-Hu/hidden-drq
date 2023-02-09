@@ -9,7 +9,8 @@ import utils
 
 class ReplayBuffer(object):
     """Buffer to store environment transitions."""
-    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug, cycnn, degrees):
+    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug, cycnn, degrees,
+                 randnet):
         self.capacity = capacity
         self.device = device
 
@@ -17,9 +18,13 @@ class ReplayBuffer(object):
             nn.ReplicationPad2d(image_pad),
             kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
 
-        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=degrees)
+        # avoid using small rotation
+        self.aug_rotation_1 = kornia.augmentation.RandomRotation(degrees=[15.0, degrees])
+        self.aug_rotation_2 = kornia.augmentation.RandomRotation(degrees=[-degrees, -15.0])
 
         self.aug_h_flip = kornia.augmentation.RandomHorizontalFlip(p=0.1)
+
+        self.rand_conv = nn.Conv2d(obs_shape[0], obs_shape[0], kernel_size=3, padding='same').to(self.device)
 
         self.obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
         self.next_obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
@@ -33,6 +38,7 @@ class ReplayBuffer(object):
 
         self.data_aug = data_aug
         self.cycnn = cycnn
+        self.randnet = randnet
 
     def __len__(self):
         return self.capacity if self.full else self.idx
@@ -82,11 +88,15 @@ class ReplayBuffer(object):
             obses_aug = self.aug_trans(obses_aug)
             next_obses_aug = self.aug_trans(next_obses_aug)
         elif self.data_aug == 2:
-            obses = self.aug_rotation(obses)
-            next_obses = self.aug_rotation(next_obses)
+            if np.random.rand(1) < 0.5:
+                aug_rotation = self.aug_rotation_1
+            else:
+                aug_rotation = self.aug_rotation_2
+            obses = aug_rotation(obses)
+            next_obses = aug_rotation(next_obses)
 
-            obses_aug = self.aug_rotation(obses_aug)
-            next_obses_aug = self.aug_rotation(next_obses_aug)
+            obses_aug = aug_rotation(obses_aug)
+            next_obses_aug = aug_rotation(next_obses_aug)
         elif self.data_aug == 3:
             obses = self.aug_h_flip(obses)
             next_obses = self.aug_h_flip(next_obses)
@@ -106,5 +116,16 @@ class ReplayBuffer(object):
 
             obses_aug = obses_aug.to(self.device)
             next_obses_aug = next_obses_aug.to(self.device)
+
+        if self.randnet:
+            with torch.no_grad():
+                # if np.random.rand(1) < 0.9:
+                #     torch.nn.init.xavier_normal_(self.rand_conv.weight)
+                #     obses = self.rand_conv(obses)
+                #     next_obses = self.rand_conv(next_obses)
+                # if np.random.rand(1) < 0.9:
+                torch.nn.init.xavier_normal_(self.rand_conv.weight)
+                obses_aug = self.rand_conv(obses_aug)
+                next_obses_aug = self.rand_conv(next_obses_aug)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug

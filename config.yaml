@@ -20,7 +20,9 @@ RAD: false
 cycnn: false
 aug_when_act: false
 black_background: false
+randnet: false
 degrees: 30.0
+visualize: false
 M: 1
 # eval
 eval_frequency: 5000
@@ -64,6 +66,11 @@ agent:
     aug_when_act: ${aug_when_act}
     degrees: ${degrees}
     M: ${M}
+    randnet: ${randnet}
+    visualize: ${visualize}
+    tag: ${tag}
+    seed: ${seed}
+
 
 critic:
   class: drq.Critic
