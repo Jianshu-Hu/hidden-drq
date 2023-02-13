@@ -318,10 +318,40 @@ class DRQAgent(object):
                 t_sne = manifold.TSNE(n_components=2, init='pca', random_state=self.seed)
                 with torch.no_grad():
                     if self.data_aug < 0:
-                        obs = self.aug(obs)
-                        obs_aug = self.aug(obs_aug)
-                    X1 = self.critic.encoder(obs).cpu().numpy()
-                    X2 = self.critic.encoder(obs_aug).cpu().numpy()
+                        # the observations are not augmented before
+                        temp_obs = self.aug(obs)
+                        temp_obs_aug = self.aug(obs_aug)
+
+                        temp_next_obs = self.aug(next_obs)
+                        temp_next_obs_aug = self.aug(next_obs_aug)
+
+                        dist = self.actor(temp_next_obs)
+                        next_action = dist.rsample()
+                        log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+                        target_Q1, target_Q2 = self.critic_target(temp_next_obs, next_action)
+                        target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob
+                        target_Q = reward + (not_done * self.discount * target_V)
+
+                        dist_aug = self.actor(temp_next_obs_aug)
+                        next_action_aug = dist_aug.rsample()
+                        log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1, keepdim=True)
+                        target_Q1, target_Q2 = self.critic_target(temp_next_obs_aug, next_action_aug)
+                        target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
+                        target_Q_aug = reward + (not_done * self.discount * target_V)
+
+                        X1 = self.critic.encoder(temp_obs).cpu().numpy()
+                        X2 = self.critic.encoder(temp_obs_aug).cpu().numpy()
+                    else:
+                        if RAD:
+                            dist_aug = self.actor(next_obs_aug)
+                            next_action_aug = dist_aug.rsample()
+                            log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1, keepdim=True)
+                            target_Q1, target_Q2 = self.critic_target(next_obs_aug, next_action_aug)
+                            target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
+                            target_Q_aug = reward + (not_done * self.discount * target_V)
+                        X1 = self.critic.encoder(obs).cpu().numpy()
+                        X2 = self.critic.encoder(obs_aug).cpu().numpy()
+
                 Y = t_sne.fit_transform(np.vstack((X1, X2)))
                 # save the projected embedding
                 prefix = '/bigdata/users/jhu/hidden-drq/outputs/'
@@ -331,7 +361,7 @@ class DRQAgent(object):
                 if not os.path.exists(path + '/seed_' + str(self.seed)):
                     os.mkdir(path + '/seed_' + str(self.seed))
                 np.savez(path + '/seed_' + str(self.seed) + '/tsne-' + str(step) + '.npz',
-                         target_Q=target_Q.cpu().numpy(), Y=Y)
+                         target_Q=target_Q.cpu().numpy(), target_Q_aug=target_Q_aug.cpu().numpy(), Y=Y)
 
         # get current Q estimates
         current_Q1, current_Q2 = self.critic(obs, action)
