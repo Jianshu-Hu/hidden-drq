@@ -15,15 +15,12 @@ replay_buffer_capacity: 100000
 seed: 1
 # new
 data_aug: 1
-regularization: 1
 RAD: false
-cycnn: false
 aug_when_act: false
 black_background: false
 randnet: false
 degrees: 30.0
 visualize: false
-M: 1
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -60,12 +57,10 @@ agent:
     critic_tau: 0.01
     critic_target_update_frequency: 2
     batch_size: ${batch_size}
-    num_train_steps: ${num_train_steps}
     image_pad: ${image_pad}
     data_aug: ${data_aug}
     aug_when_act: ${aug_when_act}
     degrees: ${degrees}
-    M: ${M}
     randnet: ${randnet}
     visualize: ${visualize}
     tag: ${tag}
@@ -94,8 +89,6 @@ encoder:
   params:
       obs_shape: ${agent.params.obs_shape}
       feature_dim: 50
-      regularization: ${regularization}
-      cycnn: ${cycnn}
       device: ${device}
 
 # hydra configuration

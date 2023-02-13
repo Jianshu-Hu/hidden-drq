@@ -15,55 +15,32 @@ from sklearn import manifold
 
 class Encoder(nn.Module):
     """Convolutional encoder for image-based observations."""
-    def __init__(self, obs_shape, feature_dim, regularization, cycnn, device):
+    def __init__(self, obs_shape, feature_dim, device):
         super().__init__()
 
         assert len(obs_shape) == 3
         self.num_layers = 4
         self.num_filters = 32
         self.output_dim = 35
-        if regularization == 2:
-            # with the regularization loss, we do not want to add the tanh layer at the end
-            self.output_logits = True
-        elif regularization == 1:
-            # original drq
-            self.output_logits = False
-        else:
-            self.output_logits = False
+        self.output_logits = False
         self.feature_dim = feature_dim
 
-        self.cycnn = cycnn
         self.device = device
 
-        if self.cycnn:
-            from cyconvlayer import CyConv2d
-            self.convs = nn.ModuleList([
-                CyConv2d(obs_shape[0], self.num_filters, kernel_size=3, stride=2, padding=1),
-                CyConv2d(self.num_filters, self.num_filters, kernel_size=3, stride=1, padding=1),
-                CyConv2d(self.num_filters, self.num_filters, kernel_size=3, stride=1, padding=1),
-                CyConv2d(self.num_filters, self.num_filters, kernel_size=3, stride=1, padding=1)
-            ])
+        self.convs = nn.ModuleList([
+            nn.Conv2d(obs_shape[0], self.num_filters, 3, stride=2),
+            nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
+            nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
+            nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1)
+        ])
 
-            self.head = nn.Sequential(
-                nn.Linear(self.num_filters * 42 * 42, self.feature_dim),
-                nn.LayerNorm(self.feature_dim))
-        else:
-            self.convs = nn.ModuleList([
-                nn.Conv2d(obs_shape[0], self.num_filters, 3, stride=2),
-                nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
-                nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1),
-                nn.Conv2d(self.num_filters, self.num_filters, 3, stride=1)
-            ])
-
-            self.head = nn.Sequential(
-                nn.Linear(self.num_filters * 35 * 35, self.feature_dim),
-                nn.LayerNorm(self.feature_dim))
+        self.head = nn.Sequential(
+            nn.Linear(self.num_filters * 35 * 35, self.feature_dim),
+            nn.LayerNorm(self.feature_dim))
 
         self.outputs = dict()
 
     def forward_conv(self, obs):
-        if self.cycnn:
-            obs = obs.contiguous()
         obs = obs / 255.
         self.outputs['obs'] = obs
 
@@ -195,8 +172,8 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size, num_train_steps, image_pad, data_aug, aug_when_act,
-                 degrees, M, randnet, visualize, tag, seed):
+                 critic_target_update_frequency, batch_size, image_pad, data_aug, aug_when_act,
+                 degrees, randnet, visualize, tag, seed):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -230,11 +207,6 @@ class DRQAgent(object):
         self.train()
         self.critic_target.train()
 
-        # regularization
-        self.q_regularized_loss = QRegularizedLoss(device=self.device)
-        self.init_weight = 1.0
-        self.num_train_steps = num_train_steps
-
         # data aug
         self.data_aug = data_aug
         self.aug_when_act = aug_when_act
@@ -247,7 +219,6 @@ class DRQAgent(object):
             self.aug_2 = kornia.augmentation.RandomRotation(degrees=[-degrees, -15.0])
         elif self.data_aug == 3:
             self.aug = kornia.augmentation.RandomHorizontalFlip(p=0.1)
-        self.M = M
         self.randnet = randnet
         if self.randnet:
             self.rand_conv = nn.Conv2d(obs_shape[0], obs_shape[0], kernel_size=3, padding='same').to(self.device)
@@ -256,11 +227,13 @@ class DRQAgent(object):
         self.tag = tag
         self.seed = seed
         if self.visualize:
-            # reacher
-            self.aug = kornia.augmentation.RandomRotation(degrees=degrees)
-            # cheetah
-            # self.aug = nn.Sequential(nn.ReplicationPad2d(image_pad),
-            #                          kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+            # these two augmentations are used for testing with sac in which the observations are not augmented
+            if self.data_aug == -1:
+                self.aug = nn.Sequential(
+                    nn.ReplicationPad2d(image_pad),
+                    kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+            elif self.data_aug == -2:
+                self.aug = kornia.augmentation.RandomRotation(degrees=degrees)
 
     def train(self, training=True):
         self.training = training
@@ -272,8 +245,7 @@ class DRQAgent(object):
         return self.log_alpha.exp()
 
     def act(self, obs, sample=False):
-        if self.encoder_cfg.params.cycnn:
-            obs = utils.polar_transform(obs)
+
         obs = torch.FloatTensor(obs).to(self.device)
         obs = obs.unsqueeze(0)
         if self.randnet:
@@ -299,18 +271,15 @@ class DRQAgent(object):
                 action_list.append(action)
             action = (sum(action_list)/2).clamp(*self.action_range)
         elif self.aug_when_act:
-            action_list = []
-            for _ in range(self.M):
-                if self.data_aug == 2:
-                    if np.random.rand(1) < 0.5:
-                        self.aug = self.aug_1
-                    else:
-                        self.aug = self.aug_2
-                obs_aug = self.aug(obs)
-                dist = self.actor(obs_aug)
-                action = dist.sample() if sample else dist.mean
-                action_list.append(action)
-            action = (sum(action_list)/self.M).clamp(*self.action_range)
+            if self.data_aug == 2:
+                if np.random.rand(1) < 0.5:
+                    self.aug = self.aug_1
+                else:
+                    self.aug = self.aug_2
+            obs_aug = self.aug(obs)
+            dist = self.actor(obs_aug)
+            action = dist.sample() if sample else dist.mean
+            action = action.clamp(*self.action_range)
         else:
             dist = self.actor(obs)
             action = dist.sample() if sample else dist.mean
@@ -319,7 +288,7 @@ class DRQAgent(object):
         return utils.to_np(action[0])
 
     def update_critic(self, obs, obs_aug, action, reward, next_obs,
-                      next_obs_aug, not_done, logger, step, regularization, RAD):
+                      next_obs_aug, not_done, logger, step, RAD):
         with torch.no_grad():
             dist = self.actor(next_obs)
             next_action = dist.rsample()
@@ -346,10 +315,11 @@ class DRQAgent(object):
         # visualize the embedding
         if self.visualize:
             if step % 5000 == 0:
-                t_sne = manifold.TSNE(n_components=2, init='pca', random_state=0)
+                t_sne = manifold.TSNE(n_components=2, init='pca', random_state=self.seed)
                 with torch.no_grad():
-                    # temp_obs = self.aug(obs)
-                    # temp_obs_aug = self.aug(obs_aug)
+                    if self.data_aug < 0:
+                        obs = self.aug(obs)
+                        obs_aug = self.aug(obs_aug)
                     X1 = self.critic.encoder(obs).cpu().numpy()
                     X2 = self.critic.encoder(obs_aug).cpu().numpy()
                 Y = t_sne.fit_transform(np.vstack((X1, X2)))
@@ -373,17 +343,6 @@ class DRQAgent(object):
 
             critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q)
 
-        # add regularization loss
-        if regularization > 1:
-            features = self.critic.encoder(obs)
-            features_aug = self.critic.encoder(obs_aug)
-
-            regularization_loss = self.q_regularized_loss(features, features_aug, target_Q, regularization)
-            weight = self.init_weight/2*(1+math.cos(math.pi * step / self.num_train_steps))
-            critic_loss += weight*regularization_loss
-
-            logger.log('train_critic/weight', weight, step)
-            logger.log('train_critic/regularization_loss', weight * regularization_loss, step)
 
         # add feature matching loss when using randnet
         if self.randnet:
@@ -437,14 +396,14 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-    def update(self, replay_buffer, logger, step, regularization, RAD):
+    def update(self, replay_buffer, logger, step, RAD):
         obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
             self.batch_size)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
         self.update_critic(obs, obs_aug, action, reward, next_obs,
-                           next_obs_aug, not_done, logger, step, regularization, RAD)
+                           next_obs_aug, not_done, logger, step, RAD)
 
         if step % self.actor_update_frequency == 0:
             self.update_actor_and_alpha(obs, logger, step)
@@ -453,29 +412,3 @@ class DRQAgent(object):
             utils.soft_update_params(self.critic, self.critic_target,
                                      self.critic_tau)
 
-
-class QRegularizedLoss(nn.Module):
-    def __init__(self, device):
-        super(QRegularizedLoss, self).__init__()
-        self.device = device
-        self.mse = nn.MSELoss()
-
-    def forward(self, features, features_aug, target_Q, regularization):
-        batch_size = features.size(0)
-        perm = np.random.permutation(batch_size)
-        features2 = features[perm]
-        target_Q = target_Q.reshape([-1, 1])
-
-        feature_dist = torch.square(features-features2).sum(-1)
-        Q_dist = F.smooth_l1_loss(target_Q, target_Q[perm], reduction='none')
-
-        feature_dist_2 = torch.square(features-features_aug).sum(-1)
-        Q_dist_2 = torch.zeros(target_Q.size()).to(self.device)
-
-        if regularization == 2:
-            loss = self.mse(feature_dist, Q_dist) + self.mse(feature_dist_2, Q_dist_2)
-        elif regularization == 3:
-            loss = self.mse(feature_dist, Q_dist)
-        elif regularization == 4:
-            loss = self.mse(feature_dist_2, Q_dist_2)
-        return loss

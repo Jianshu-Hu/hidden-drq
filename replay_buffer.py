@@ -9,7 +9,7 @@ import utils
 
 class ReplayBuffer(object):
     """Buffer to store environment transitions."""
-    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug, cycnn, degrees,
+    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug, degrees,
                  randnet):
         self.capacity = capacity
         self.device = device
@@ -37,7 +37,6 @@ class ReplayBuffer(object):
         self.full = False
 
         self.data_aug = data_aug
-        self.cycnn = cycnn
         self.randnet = randnet
 
     def __len__(self):
@@ -60,22 +59,14 @@ class ReplayBuffer(object):
                                  size=batch_size)
 
         obses = self.obses[idxs]
-        # np.save('/bigdata/users/jhu/hidden-drq/outputs/obs_black.npy', obses)
-        # raise ValueError('debug')
         next_obses = self.next_obses[idxs]
         obses_aug = obses.copy()
         next_obses_aug = next_obses.copy()
 
-        if self.cycnn:
-            obses = torch.as_tensor(obses).float()
-            next_obses = torch.as_tensor(next_obses).float()
-            obses_aug = torch.as_tensor(obses_aug).float()
-            next_obses_aug = torch.as_tensor(next_obses_aug).float()
-        else:
-            obses = torch.as_tensor(obses, device=self.device).float()
-            next_obses = torch.as_tensor(next_obses, device=self.device).float()
-            obses_aug = torch.as_tensor(obses_aug, device=self.device).float()
-            next_obses_aug = torch.as_tensor(next_obses_aug, device=self.device).float()
+        obses = torch.as_tensor(obses, device=self.device).float()
+        next_obses = torch.as_tensor(next_obses, device=self.device).float()
+        obses_aug = torch.as_tensor(obses_aug, device=self.device).float()
+        next_obses_aug = torch.as_tensor(next_obses_aug, device=self.device).float()
 
         actions = torch.as_tensor(self.actions[idxs], device=self.device)
         rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
@@ -103,19 +94,6 @@ class ReplayBuffer(object):
 
             obses_aug = self.aug_h_flip(obses_aug)
             next_obses_aug = self.aug_h_flip(next_obses_aug)
-
-        if self.cycnn:
-            obses = utils.polar_transform(obses)
-            next_obses = utils.polar_transform(next_obses)
-
-            obses_aug = utils.polar_transform(obses_aug)
-            next_obses_aug = utils.polar_transform(next_obses_aug)
-
-            obses = obses.to(self.device)
-            next_obses = next_obses.to(self.device)
-
-            obses_aug = obses_aug.to(self.device)
-            next_obses_aug = next_obses_aug.to(self.device)
 
         if self.randnet:
             with torch.no_grad():

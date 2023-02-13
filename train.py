@@ -89,7 +89,6 @@ class Workspace(object):
                                           cfg.replay_buffer_capacity,
                                           self.cfg.image_pad, self.device,
                                           self.cfg.data_aug,
-                                          self.cfg.cycnn,
                                           self.cfg.degrees,
                                           self.cfg.randnet)
 
@@ -159,7 +158,7 @@ class Workspace(object):
             if self.step >= self.cfg.num_seed_steps:
                 for _ in range(self.cfg.num_train_iters):
                     self.agent.update(self.replay_buffer, self.logger,
-                                      self.step, self.cfg.regularization, self.cfg.RAD)
+                                      self.step, self.cfg.RAD)
 
             next_obs, reward, done, info = self.env.step(action)
 
