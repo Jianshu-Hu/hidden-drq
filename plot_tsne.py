@@ -2,6 +2,7 @@ from sklearn import manifold
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import math
 
 
 def compare_pairs(file):
@@ -12,7 +13,11 @@ def compare_pairs(file):
     distance = np.sqrt(np.sum((Y[:batch_size]-Y[batch_size:])**2, axis=-1))
     percentage = np.sum((distance < 2))/batch_size
     # print('percentage of pairs whose distance is smaller than 1: '+str(percentage))
-    return percentage
+    target_Q = data['target_Q']
+    target_Q_aug = data['target_Q_aug']
+    relative_diff = np.abs(target_Q-target_Q_aug)/np.maximum(target_Q, target_Q_aug)
+    average_diff = np.max(relative_diff)
+    return percentage, average_diff
 
 
 def plot_target_Q(regularization, step, prefix):
@@ -38,25 +43,42 @@ def average_the_data(data):
     all_data = np.zeros([len(data), shortest_len])
     for i in range(len(data)):
         all_data[i] = data[i][:shortest_len]
-    average_data = np.average(all_data, axis=0)
-    return average_data
+    mean = np.average(all_data, axis=0)
+    std = np.std(all_data, axis=0)
+    return mean, std
 
 
-def plot_percentage(domain, prefix_list, fig_name):
-    fig, axs = plt.subplots(1, 1)
+def plot_percentage(domain, prefix_list):
+    plt.rcParams["figure.figsize"] = (8, 8)
+    num_runs = 3
+    fig, axs = plt.subplots(2, 1)
     for prefix in prefix_list:
-        all_data = []
-        for seed in range(1, 4):
+        all_data_percentage = []
+        all_data_diff = []
+        for seed in range(1, 1+num_runs):
             folder = '../saved_features/' + domain + '/' + prefix + '/'+'seed_'+str(seed)
             files = os.listdir(folder)
             percentage_list = []
+            diff_list = []
             for num in range(len(files)):
-                percentage = compare_pairs(folder+'/tsne-'+str(5000*(num+1))+'.npz')
+                percentage, average_diff = compare_pairs(folder+'/tsne-'+str(5000*(num+1))+'.npz')
                 percentage_list.append(percentage)
-            all_data.append(percentage_list)
-        average_data = average_the_data(all_data)
-        axs.plot(np.arange(1, average_data.shape[0]+1)*10000, average_data, label=prefix)
-    plt.legend()
+                diff_list.append(average_diff)
+            all_data_percentage.append(percentage_list)
+            all_data_diff.append(diff_list)
+        percentage_mean, percentage_std = average_the_data(all_data_percentage)
+        diff_mean, diff_std = average_the_data(all_data_diff)
+        axs[0].fill_between(np.arange(1, percentage_mean.shape[0]+1)*10000,
+                            percentage_mean - percentage_std/math.sqrt(num_runs),
+                            percentage_mean + percentage_std/math.sqrt(num_runs), alpha=0.4)
+        axs[0].plot(np.arange(1, percentage_mean.shape[0] + 1) * 10000, percentage_mean)
+        axs[0].set_title('percentage')
+        axs[1].fill_between(np.arange(1, diff_mean.shape[0]+1)*10000,
+                            diff_mean - diff_std/math.sqrt(num_runs),
+                            diff_mean + diff_std/math.sqrt(num_runs), alpha=0.4)
+        axs[1].plot(np.arange(1, diff_mean.shape[0] + 1) * 10000, diff_mean, label=prefix)
+        axs[1].set_title('largest relative error')
+    fig.legend(fontsize=6)
     plt.savefig('../saved_features/saved_tsne_fig/'+domain+'.png')
 
 
@@ -66,14 +88,20 @@ def plot_percentage(domain, prefix_list, fig_name):
 #                  'DrQ_aug_when_act_reacher_hard_rotation', 'DrQ+t_sne+crop']
 
 domain_1 = 'cheetah_run'
-prefix_1 = ['cheetah_run+sac+visualize_crop', 'cheetah_run+RAD_crop+visualize_crop',
-            'cheetah_run+DrQ_crop+visualize_crop']
+prefix_1 = ['cheetah_run+sac+visualize_crop',
+            'cheetah_run+RAD_crop+visualize_crop', 'cheetah_run+RAD_crop+aug_when_act+visualize_crop',
+            'cheetah_run+DrQ_crop+visualize_crop', 'cheetah_run+DrQ_crop+aug_when_act+visualize_crop',
+            'cheetah_run+DrQ_remove_small_crop+aug_when_act+visualize_crop',
+            'cheetah_run+DrQ_3_aug+aug_when_act+visualize_crop']
 domain_2 = 'walker_run'
-prefix_2 = ['walker_run+sac+visualize_crop', 'walker_run+RAD+visualize_crop',
-            'walker_run+DrQ+visualize_crop']
+prefix_2 = ['walker_run+sac+visualize_crop',
+            'walker_run+RAD+visualize_crop', 'walker_run+RAD+aug_when_act+visualize_crop',
+            'walker_run+DrQ+visualize_crop', 'walker_run+DrQ+aug_when_act+visualize_crop',
+            'walker_run+DrQ_remove_small_crop+aug_when_act+visualize_crop',
+            'walker_run+DrQ_3_aug+aug_when_act+visualize_crop']
 
-plot_percentage(domain_1, prefix_1, fig_name='cheetah')
-plot_percentage(domain_2, prefix_2, fig_name='reacher')
+plot_percentage(domain_1, prefix_1)
+plot_percentage(domain_2, prefix_2)
 
 
 # plot_target_Q(regularization, step, prefix)

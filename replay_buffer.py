@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import utils
+import torchvision
+from torchvision.transforms import functional as F
 
 
 class ReplayBuffer(object):
@@ -17,6 +19,10 @@ class ReplayBuffer(object):
         self.aug_trans = nn.Sequential(
             nn.ReplicationPad2d(image_pad),
             kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
+        # self.aug_trans = nn.Sequential(
+        #     nn.ReplicationPad2d(image_pad),
+        #     RandomCropNew((obs_shape[-1], obs_shape[-1]))
+        # )
 
         # avoid using small rotation
         self.aug_rotation_1 = kornia.augmentation.RandomRotation(degrees=[15.0, degrees])
@@ -84,9 +90,21 @@ class ReplayBuffer(object):
             else:
                 aug_rotation = self.aug_rotation_2
             obses = aug_rotation(obses)
+            if np.random.rand(1) < 0.5:
+                aug_rotation = self.aug_rotation_1
+            else:
+                aug_rotation = self.aug_rotation_2
             next_obses = aug_rotation(next_obses)
 
+            if np.random.rand(1) < 0.5:
+                aug_rotation = self.aug_rotation_1
+            else:
+                aug_rotation = self.aug_rotation_2
             obses_aug = aug_rotation(obses_aug)
+            if np.random.rand(1) < 0.5:
+                aug_rotation = self.aug_rotation_1
+            else:
+                aug_rotation = self.aug_rotation_2
             next_obses_aug = aug_rotation(next_obses_aug)
         elif self.data_aug == 3:
             obses = self.aug_h_flip(obses)
@@ -107,3 +125,38 @@ class ReplayBuffer(object):
                 next_obses_aug = self.rand_conv(next_obses_aug)
 
         return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug
+
+
+class RandomCropNew(torchvision.transforms.RandomCrop):
+    @staticmethod
+    def get_params(img, output_size):
+        """Get parameters for ``crop`` for a random crop.
+
+        Args:
+            img (PIL Image or Tensor): Image to be cropped.
+            output_size (tuple): Expected output size of the crop.
+
+        Returns:
+            tuple: params (i, j, h, w) to be passed to ``crop`` for random crop.
+        """
+        _, h, w = F.get_dimensions(img)
+        th, tw = output_size
+
+        if h < th or w < tw:
+            raise ValueError(f"Required crop size {(th, tw)} is larger than input image size {(h, w)}")
+
+        if w == tw and h == th:
+            return 0, 0, h, w
+
+        # at least 1 pixel shift
+        if np.random.rand(1) < 0.5:
+            i = torch.randint(0, int((h - th)/2), size=(1,)).item()
+        else:
+            i = torch.randint(int((h - th)/2) + 1, (h - th) + 1, size=(1,)).item()
+
+        if np.random.rand(1) < 0.5:
+            j = torch.randint(0, int((w - tw)/2), size=(1,)).item()
+        else:
+            j = torch.randint(int((w - tw)/2) + 1, (w - tw) + 1, size=(1,)).item()
+        return i, j, th, tw
+

@@ -62,7 +62,10 @@ folders_14 = ['drq', 'drq+aug_when_act',
 folders_17 = ['drq', 'drq+aug_when_act', 'drq+aug_when_act_average_2', 'drq+aug_when_act_average_5',
               'rad', 'rad+aug_when_act']
 folders_20 = ['drq+aug_when_act', 'randnet', 'randnet_rand_both', 'randnet_with_fm_loss']
-folders_23 = ['sac+visualize', 'rad+visualize', 'drq+visualize']
+folders_23 = ['sac+visualize', 'rad+visualize', 'rad+aug_when_act+visualize', 'drq+visualize',
+              'drq+aug_when_act+visualize',
+              'drq+remove_small_crop+aug_when_act+visualize',
+              'drq_3_aug+aug_when_act+visualize']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -89,7 +92,10 @@ folders_2 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regulari
 folders_4 = ['drq', 'drq+cycnn']
 folders_11 = ['drq', 'drq+aug_when_act', 'drq+rotation_90+aug_when_act', 'drq+rotation_30+aug_when_act']
 folders_19 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
-folders_22 = ['sac+visualize', 'rad+visualize', 'drq+visualize']
+folders_22 = ['sac+visualize', 'rad+visualize', 'rad+aug_when_act+visualize', 'drq+visualize',
+              'drq+aug_when_act+visualize',
+              'drq+remove_small_crop+aug_when_act+visualize',
+              'drq_3_aug+aug_when_act+visualize']
 
 prefix_8 = 'saved_runs/ballincup_catch/'
 folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -201,11 +207,11 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # plot_several_folders(prefix=prefix_3, folders=folders_16, title='reacher_hard_rad')
 # plot_several_folders(prefix=prefix_2, folders=folders_17, title='cheetah_run_rad')
 # plot_several_folders(prefix=prefix_8, folders=folders_18, title='ballincup_catch_rad')
-# plot_several_folders(prefix=prefix_7, folders=folders_19, title='walker_walk_rad')
+# plot_several_folders(prefix=prefix_7, folders=folders_19, title='walker_run_rad')
 #
 # plot_several_folders(prefix=prefix_2, folders=folders_20, title='cheetah_run_randnet')
 # plot_several_folders(prefix=prefix_3, folders=folders_21, title='reacher_hard_randnet')
 
 # 2.20
-plot_several_folders(prefix=prefix_7, folders=folders_22, title='walker_walk_visualize')
+plot_several_folders(prefix=prefix_7, folders=folders_22, title='walker_run_visualize')
 plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_run_visualize')
