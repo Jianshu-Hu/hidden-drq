@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq_test
 
-tag=cheetah_run+RAD_crop+aug_when_act+visualize_crop
+tag=cheetah_run+RAD_crop+aug_when_act+visualize_crop+determinitic
 seed=3
 
 echo "start running $tag with seed $seed"

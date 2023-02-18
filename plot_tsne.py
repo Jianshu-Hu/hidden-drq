@@ -11,7 +11,7 @@ def compare_pairs(file):
     batch_size = 512
     # calculate percentage of close samples
     distance = np.sqrt(np.sum((Y[:batch_size]-Y[batch_size:])**2, axis=-1))
-    percentage = np.sum((distance < 2))/batch_size
+    percentage = np.sum((distance < 1))/batch_size
     # print('percentage of pairs whose distance is smaller than 1: '+str(percentage))
     target_Q = data['target_Q']
     target_Q_aug = data['target_Q_aug']
@@ -48,13 +48,13 @@ def average_the_data(data):
     return mean, std
 
 
-def plot_percentage(domain, prefix_list):
+def plot_percentage(domain, prefix_list, title):
     plt.rcParams["figure.figsize"] = (8, 8)
-    num_runs = 3
     fig, axs = plt.subplots(2, 1)
     for prefix in prefix_list:
         all_data_percentage = []
         all_data_diff = []
+        num_runs = len(os.listdir('../saved_features/' + domain + '/' + prefix))
         for seed in range(1, 1+num_runs):
             folder = '../saved_features/' + domain + '/' + prefix + '/'+'seed_'+str(seed)
             files = os.listdir(folder)
@@ -79,7 +79,7 @@ def plot_percentage(domain, prefix_list):
         axs[1].plot(np.arange(1, diff_mean.shape[0] + 1) * 10000, diff_mean, label=prefix)
         axs[1].set_title('largest relative error')
     fig.legend(fontsize=6)
-    plt.savefig('../saved_features/saved_tsne_fig/'+domain+'.png')
+    plt.savefig('../saved_features/saved_tsne_fig/'+domain+'_'+title+'.png')
 
 
 # prefix_list = ['sac_cheetah_run_crop', 'RAD_cheetah_run_crop', 'DrQ_cheetah_run_crop',
@@ -92,16 +92,21 @@ prefix_1 = ['cheetah_run+sac+visualize_crop',
             'cheetah_run+RAD_crop+visualize_crop', 'cheetah_run+RAD_crop+aug_when_act+visualize_crop',
             'cheetah_run+DrQ_crop+visualize_crop', 'cheetah_run+DrQ_crop+aug_when_act+visualize_crop',
             'cheetah_run+DrQ_remove_small_crop+aug_when_act+visualize_crop',
-            'cheetah_run+DrQ_3_aug+aug_when_act+visualize_crop']
+            'cheetah_run+DrQ_3_aug+aug_when_act+visualize_crop', 'cheetah_run+DrQ_rotation_shift+visualize']
+prefix_3 = ['cheetah_run+RAD_crop+visualize_crop+determinitic',
+            'cheetah_run+DrQ_crop+visualize+deterministic',
+            'cheetah_run+DrQ_crop+aug_when_act+visualize+deterministic',
+            'cheetah_run+DrQ_rotation_15_crop+visualize+deterministic']
 domain_2 = 'walker_run'
 prefix_2 = ['walker_run+sac+visualize_crop',
             'walker_run+RAD+visualize_crop', 'walker_run+RAD+aug_when_act+visualize_crop',
             'walker_run+DrQ+visualize_crop', 'walker_run+DrQ+aug_when_act+visualize_crop',
             'walker_run+DrQ_remove_small_crop+aug_when_act+visualize_crop',
-            'walker_run+DrQ_3_aug+aug_when_act+visualize_crop']
+            'walker_run+DrQ_3_aug+aug_when_act+visualize_crop', 'walker_run+DrQ_rotation_shift+visualize']
 
-plot_percentage(domain_1, prefix_1)
-plot_percentage(domain_2, prefix_2)
+# plot_percentage(domain_1, prefix_1, title='original')
+plot_percentage(domain_1, prefix_3, title='deterministic')
+# plot_percentage(domain_2, prefix_2, title='original')
 
 
 # plot_target_Q(regularization, step, prefix)

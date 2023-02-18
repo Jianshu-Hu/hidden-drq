@@ -25,6 +25,7 @@ class ReplayBuffer(object):
         # )
 
         # avoid using small rotation
+        self.aug_rotation = kornia.augmentation.RandomRotation(degrees=degrees)
         self.aug_rotation_1 = kornia.augmentation.RandomRotation(degrees=[15.0, degrees])
         self.aug_rotation_2 = kornia.augmentation.RandomRotation(degrees=[-degrees, -15.0])
 
@@ -112,6 +113,17 @@ class ReplayBuffer(object):
 
             obses_aug = self.aug_h_flip(obses_aug)
             next_obses_aug = self.aug_h_flip(next_obses_aug)
+        elif self.data_aug == 4:
+            # rotation+shift
+            obses = self.aug_rotation(obses)
+            obses = self.aug_trans(obses)
+            next_obses = self.aug_rotation(next_obses)
+            next_obses = self.aug_trans(next_obses)
+
+            obses_aug = self.aug_rotation(obses_aug)
+            obses_aug = self.aug_trans(obses_aug)
+            next_obses_aug = self.aug_rotation(next_obses_aug)
+            next_obses_aug = self.aug_trans(next_obses_aug)
 
         if self.randnet:
             with torch.no_grad():

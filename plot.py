@@ -24,9 +24,10 @@ def average_over_several_runs(folder):
     return mean, std, evaluation_freq
 
 
-def plot_several_folders(prefix, folders, num_runs=3, label_list=[], plot_or_save='save', title=""):
+def plot_several_folders(prefix, folders, label_list=[], plot_or_save='save', title=""):
     fig, axs = plt.subplots(1, 1)
     for i in range(len(folders)):
+        num_runs = len(os.listdir(prefix+folders[i]))
         mean, std, eval_freq = average_over_several_runs(prefix+folders[i])
         # plot variance
         axs.fill_between(eval_freq*range(len(mean)), mean - std/math.sqrt(num_runs), mean + std/math.sqrt(num_runs),
@@ -62,10 +63,13 @@ folders_14 = ['drq', 'drq+aug_when_act',
 folders_17 = ['drq', 'drq+aug_when_act', 'drq+aug_when_act_average_2', 'drq+aug_when_act_average_5',
               'rad', 'rad+aug_when_act']
 folders_20 = ['drq+aug_when_act', 'randnet', 'randnet_rand_both', 'randnet_with_fm_loss']
-folders_23 = ['sac+visualize', 'rad+visualize', 'rad+aug_when_act+visualize', 'drq+visualize',
+folders_23 = ['sac+visualize', 'rad+visualize+deterministic', 'rad+aug_when_act+visualize', 'drq+visualize',
               'drq+aug_when_act+visualize',
               'drq+remove_small_crop+aug_when_act+visualize',
-              'drq_3_aug+aug_when_act+visualize']
+              'drq_3_aug+aug_when_act+visualize', 'drq+rotation_shift+visualize']
+folders_24 = ['rad+visualize+deterministic', 'drq+visualize+deterministic',
+              'drq+aug_when_act+visualize+deterministic',
+              'drq+rotation_15_crop+visualize+deterministic']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -95,7 +99,7 @@ folders_19 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 folders_22 = ['sac+visualize', 'rad+visualize', 'rad+aug_when_act+visualize', 'drq+visualize',
               'drq+aug_when_act+visualize',
               'drq+remove_small_crop+aug_when_act+visualize',
-              'drq_3_aug+aug_when_act+visualize']
+              'drq_3_aug+aug_when_act+visualize', 'drq+rotation_shift+visualize']
 
 prefix_8 = 'saved_runs/ballincup_catch/'
 folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -213,5 +217,6 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # plot_several_folders(prefix=prefix_3, folders=folders_21, title='reacher_hard_randnet')
 
 # 2.20
-plot_several_folders(prefix=prefix_7, folders=folders_22, title='walker_run_visualize')
-plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_run_visualize')
+# plot_several_folders(prefix=prefix_7, folders=folders_22, title='walker_run_visualize')
+# plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_run_visualize')
+plot_several_folders(prefix=prefix_2, folders=folders_24, title='cheetah_run_deterministic')
