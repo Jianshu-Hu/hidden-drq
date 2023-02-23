@@ -19,10 +19,10 @@ class ReplayBuffer(object):
         self.aug_trans = nn.Sequential(
             nn.ReplicationPad2d(image_pad),
             kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
-        # self.aug_trans = nn.Sequential(
-        #     nn.ReplicationPad2d(image_pad),
-        #     RandomCropNew((obs_shape[-1], obs_shape[-1]))
-        # )
+        self.aug_trans_new = nn.Sequential(
+            nn.ReplicationPad2d(image_pad),
+            RandomCropNew((obs_shape[-1], obs_shape[-1]))
+        )
 
         # avoid using small rotation
         self.aug_rotation = kornia.augmentation.RandomRotation(degrees=degrees)
@@ -85,6 +85,7 @@ class ReplayBuffer(object):
 
             obses_aug = self.aug_trans(obses_aug)
             next_obses_aug = self.aug_trans(next_obses_aug)
+
         elif self.data_aug == 2:
             if np.random.rand(1) < 0.5:
                 aug_rotation = self.aug_rotation_1
@@ -124,6 +125,15 @@ class ReplayBuffer(object):
             obses_aug = self.aug_trans(obses_aug)
             next_obses_aug = self.aug_rotation(next_obses_aug)
             next_obses_aug = self.aug_trans(next_obses_aug)
+        elif self.data_aug == 5:
+            obses = torchvision.transforms.Lambda(lambda x: torch.stack([self.aug_trans(x_) for x_ in x]))(obses)
+            next_obses = torchvision.transforms.Lambda\
+                (lambda x: torch.stack([self.aug_trans(x_) for x_ in x]))(next_obses)
+
+            obses_aug = torchvision.transforms.Lambda\
+                (lambda x: torch.stack([self.aug_trans(x_) for x_ in x]))(obses_aug)
+            next_obses_aug = torchvision.transforms.Lambda\
+                (lambda x: torch.stack([self.aug_trans(x_) for x_ in x]))(next_obses_aug)
 
         if self.randnet:
             with torch.no_grad():
@@ -162,13 +172,33 @@ class RandomCropNew(torchvision.transforms.RandomCrop):
 
         # at least 1 pixel shift
         if np.random.rand(1) < 0.5:
-            i = torch.randint(0, int((h - th)/2), size=(1,)).item()
+            i = torch.randint(0, (h-th)+1, size=(1,)).item()
+            if i == int((h - th) / 2):
+                if np.random.rand(1) < 0.5:
+                    j = torch.randint(0, int((w - tw) / 2 - 1), size=(1,)).item()
+                else:
+                    j = torch.randint(int((w - tw) / 2) + 2, (w - tw) + 1, size=(1,)).item()
+            elif i == int((w - tw) / 2)+1 or i == int((w - tw) / 2)-1:
+                if np.random.rand(1) < 0.5:
+                    j = torch.randint(0, int((w - tw) / 2), size=(1,)).item()
+                else:
+                    j = torch.randint(int((w - tw) / 2) + 1, (w - tw) + 1, size=(1,)).item()
+            else:
+                j = torch.randint(0, (w-tw)+1, size=(1,)).item()
         else:
-            i = torch.randint(int((h - th)/2) + 1, (h - th) + 1, size=(1,)).item()
+            j = torch.randint(0, (w - tw) + 1, size=(1,)).item()
+            if j == int((w - tw) / 2):
+                if np.random.rand(1) < 0.5:
+                    i = torch.randint(0, int((h - th) / 2-1), size=(1,)).item()
+                else:
+                    i = torch.randint(int((h - th)/2) + 2, (h - th) + 1, size=(1,)).item()
+            elif j == int((w - tw) / 2)-1 or j == int((w - tw) / 2)+1:
+                if np.random.rand(1) < 0.5:
+                    i = torch.randint(0, int((h - th) / 2), size=(1,)).item()
+                else:
+                    i = torch.randint(int((h - th)/2) + 1, (h - th) + 1, size=(1,)).item()
+            else:
+                i = torch.randint(0, (h-th)+1, size=(1,)).item()
 
-        if np.random.rand(1) < 0.5:
-            j = torch.randint(0, int((w - tw)/2), size=(1,)).item()
-        else:
-            j = torch.randint(int((w - tw)/2) + 1, (w - tw) + 1, size=(1,)).item()
         return i, j, th, tw
 

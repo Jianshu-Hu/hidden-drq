@@ -11,12 +11,12 @@ def compare_pairs(file):
     batch_size = 512
     # calculate percentage of close samples
     distance = np.sqrt(np.sum((Y[:batch_size]-Y[batch_size:])**2, axis=-1))
-    percentage = np.sum((distance < 1))/batch_size
+    percentage = np.sum((distance < 2))/batch_size
     # print('percentage of pairs whose distance is smaller than 1: '+str(percentage))
     target_Q = data['target_Q']
     target_Q_aug = data['target_Q_aug']
     relative_diff = np.abs(target_Q-target_Q_aug)/np.maximum(target_Q, target_Q_aug)
-    average_diff = np.max(relative_diff)
+    average_diff = np.mean(relative_diff)
     return percentage, average_diff
 
 
@@ -77,7 +77,7 @@ def plot_percentage(domain, prefix_list, title):
                             diff_mean - diff_std/math.sqrt(num_runs),
                             diff_mean + diff_std/math.sqrt(num_runs), alpha=0.4)
         axs[1].plot(np.arange(1, diff_mean.shape[0] + 1) * 10000, diff_mean, label=prefix)
-        axs[1].set_title('largest relative error')
+        axs[1].set_title('mean relative error')
     fig.legend(fontsize=6)
     plt.savefig('../saved_features/saved_tsne_fig/'+domain+'_'+title+'.png')
 
@@ -87,26 +87,49 @@ def plot_percentage(domain, prefix_list, title):
 # prefix_list_2 = ['sac_reacher_hard_rotation', 'RAD_reacher_hard_rotation', 'DrQ_reacher_hard_rotation',
 #                  'DrQ_aug_when_act_reacher_hard_rotation', 'DrQ+t_sne+crop']
 
-domain_1 = 'cheetah_run'
+domain_1 = 'cheetah_run_new'
 prefix_1 = ['cheetah_run+sac+visualize_crop',
             'cheetah_run+RAD_crop+visualize_crop', 'cheetah_run+RAD_crop+aug_when_act+visualize_crop',
             'cheetah_run+DrQ_crop+visualize_crop', 'cheetah_run+DrQ_crop+aug_when_act+visualize_crop',
             'cheetah_run+DrQ_remove_small_crop+aug_when_act+visualize_crop',
             'cheetah_run+DrQ_3_aug+aug_when_act+visualize_crop', 'cheetah_run+DrQ_rotation_shift+visualize']
-prefix_3 = ['cheetah_run+RAD_crop+visualize_crop+determinitic',
+# prefix_3 = ['cheetah_run+RAD_crop+visualize_crop+determinitic',
+#             'cheetah_run+RAD_crop+aug_when_evaluate+visualize+determinitic',
+#             'cheetah_run+RAD_crop+aug_when_act+visualize_crop+determinitic',
+#             'cheetah_run+DrQ_crop+visualize+deterministic',
+#             'cheetah_run+DrQ_crop+aug_when_act+visualize+deterministic']
+# prefix_4 = ['cheetah_run+DrQ_crop+aug_when_act+visualize+deterministic',
+#             'cheetah_run+DrQ_rotation_15_crop+visualize+deterministic',
+#             'cheetah_run+DrQ_rotation_15_crop+aug_when_act+visualize+deterministic',
+#             'cheetah_run+DrQ_remove_00_crop+aug_when_act+visualize+deterministic',
+#             'cheetah_run+DrQ_remove_01_00_crop+aug_when_act+visualize+deterministic']
+prefix_3 = ['cheetah_run+RAD_crop+visualize+determinitic',
+            'cheetah_run+RAD_crop+aug_when_evaluate+visualize+determinitic',
+            'cheetah_run+RAD_crop+aug_when_act+visualize+determinitic',
             'cheetah_run+DrQ_crop+visualize+deterministic',
+            'cheetah_run+DrQ_crop+aug_when_act+visualize+deterministic']
+prefix_4 = ['cheetah_run+DrQ_crop+visualize+deterministic',
             'cheetah_run+DrQ_crop+aug_when_act+visualize+deterministic',
-            'cheetah_run+DrQ_rotation_15_crop+visualize+deterministic']
-domain_2 = 'walker_run'
+            'cheetah_run+DrQ_rotation_15_crop+aug_when_act+visualize+deterministic',
+            'cheetah_run+DrQ_remove_01_00_crop+aug_when_act+visualize+deterministic']
+domain_2 = 'walker_run_new'
 prefix_2 = ['walker_run+sac+visualize_crop',
             'walker_run+RAD+visualize_crop', 'walker_run+RAD+aug_when_act+visualize_crop',
             'walker_run+DrQ+visualize_crop', 'walker_run+DrQ+aug_when_act+visualize_crop',
             'walker_run+DrQ_remove_small_crop+aug_when_act+visualize_crop',
             'walker_run+DrQ_3_aug+aug_when_act+visualize_crop', 'walker_run+DrQ_rotation_shift+visualize']
+prefix_5 = ['walker_run+DrQ_crop+visualize+deterministic',
+            'walker_run+DrQ_crop+aug_when_act+visualize+deterministic',
+            'walker_run+DrQ_remove_01_00_crop+aug_when_act+visualize+deterministic']
 
+# 2.20
 # plot_percentage(domain_1, prefix_1, title='original')
-plot_percentage(domain_1, prefix_3, title='deterministic')
 # plot_percentage(domain_2, prefix_2, title='original')
+
+# 2.27
+plot_percentage(domain_1, prefix_3, title='deterministic_aug_when_act_new')
+plot_percentage(domain_1, prefix_4, title='deterministic_different_aug_new')
+plot_percentage(domain_2, prefix_5, title='deterministic_aug_when_act_new')
 
 
 # plot_target_Q(regularization, step, prefix)

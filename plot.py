@@ -67,9 +67,15 @@ folders_23 = ['sac+visualize', 'rad+visualize+deterministic', 'rad+aug_when_act+
               'drq+aug_when_act+visualize',
               'drq+remove_small_crop+aug_when_act+visualize',
               'drq_3_aug+aug_when_act+visualize', 'drq+rotation_shift+visualize']
-folders_24 = ['rad+visualize+deterministic', 'drq+visualize+deterministic',
+folders_24 = ['rad+visualize+deterministic', 'rad+visualize+deterministic_old',
+              'rad+aug_when_evaluate+visualize+deterministic',
+              'rad+aug_when_act+visualize+deterministic',
+              'drq+visualize+deterministic',
+              'drq+aug_when_act+visualize+deterministic']
+folders_25 = ['drq+visualize+deterministic',
               'drq+aug_when_act+visualize+deterministic',
-              'drq+rotation_15_crop+visualize+deterministic']
+              'drq+rotation_15_crop+aug_when_act+visualize+deterministic',
+              'drq+remove_01_00_crop+aug_when_act+visualize+deterministic']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -100,6 +106,8 @@ folders_22 = ['sac+visualize', 'rad+visualize', 'rad+aug_when_act+visualize', 'd
               'drq+aug_when_act+visualize',
               'drq+remove_small_crop+aug_when_act+visualize',
               'drq_3_aug+aug_when_act+visualize', 'drq+rotation_shift+visualize']
+folders_26 = ['drq+visualize+deterministic', 'drq+aug_when_act+visualize+deterministic',
+              'drq+remove_01_00_crop+aug_when_act+visualize+deterministic']
 
 prefix_8 = 'saved_runs/ballincup_catch/'
 folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -219,4 +227,8 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # 2.20
 # plot_several_folders(prefix=prefix_7, folders=folders_22, title='walker_run_visualize')
 # plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_run_visualize')
-plot_several_folders(prefix=prefix_2, folders=folders_24, title='cheetah_run_deterministic')
+
+# 2.27
+plot_several_folders(prefix=prefix_2, folders=folders_24, title='cheetah_run_deterministic_aug_when_act')
+plot_several_folders(prefix=prefix_2, folders=folders_25, title='cheetah_run_deterministic_different_aug')
+plot_several_folders(prefix=prefix_7, folders=folders_26, title='walker_run_deterministic')

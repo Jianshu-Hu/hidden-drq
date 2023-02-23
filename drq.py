@@ -5,6 +5,8 @@ import torch.nn.functional as F
 import copy
 import math
 import kornia
+
+import replay_buffer
 import utils
 import hydra
 import os
@@ -219,6 +221,17 @@ class DRQAgent(object):
             self.aug_2 = kornia.augmentation.RandomRotation(degrees=[-degrees, -15.0])
         elif self.data_aug == 3:
             self.aug = kornia.augmentation.RandomHorizontalFlip(p=0.1)
+        elif self.data_aug == 4:
+            self.aug = nn.Sequential(
+                kornia.augmentation.RandomRotation(degrees=degrees),
+                nn.ReplicationPad2d(image_pad),
+                kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1]))
+            )
+        elif self.data_aug == 5:
+            self.aug = nn.Sequential(
+            nn.ReplicationPad2d(image_pad),
+            replay_buffer.RandomCropNew((obs_shape[-1], obs_shape[-1])))
+
         self.randnet = randnet
         if self.randnet:
             self.rand_conv = nn.Conv2d(obs_shape[0], obs_shape[0], kernel_size=3, padding='same').to(self.device)
