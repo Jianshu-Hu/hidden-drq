@@ -18,9 +18,9 @@ data_aug: 1
 RAD: false
 aug_when_act: false
 black_background: false
-randnet: false
 degrees: 30.0
 visualize: false
+dist_alpha: 0.6
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -61,10 +61,10 @@ agent:
     data_aug: ${data_aug}
     aug_when_act: ${aug_when_act}
     degrees: ${degrees}
-    randnet: ${randnet}
     visualize: ${visualize}
     tag: ${tag}
     seed: ${seed}
+    dist_alpha: ${dist_alpha}
 
 
 critic:

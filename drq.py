@@ -175,7 +175,7 @@ class DRQAgent(object):
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, image_pad, data_aug, aug_when_act,
-                 degrees, randnet, visualize, tag, seed):
+                 degrees, visualize, tag, seed, dist_alpha):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -212,29 +212,9 @@ class DRQAgent(object):
         # data aug
         self.data_aug = data_aug
         self.aug_when_act = aug_when_act
-        if self.data_aug == 1:
-            self.aug = nn.Sequential(
-            nn.ReplicationPad2d(image_pad),
-            kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1])))
-        elif self.data_aug == 2:
-            self.aug_1 = kornia.augmentation.RandomRotation(degrees=[15.0, degrees])
-            self.aug_2 = kornia.augmentation.RandomRotation(degrees=[-degrees, -15.0])
-        elif self.data_aug == 3:
-            self.aug = kornia.augmentation.RandomHorizontalFlip(p=0.1)
-        elif self.data_aug == 4:
-            self.aug = nn.Sequential(
-                kornia.augmentation.RandomRotation(degrees=degrees),
-                nn.ReplicationPad2d(image_pad),
-                kornia.augmentation.RandomCrop((obs_shape[-1], obs_shape[-1]))
-            )
-        elif self.data_aug == 5:
-            self.aug = nn.Sequential(
-            nn.ReplicationPad2d(image_pad),
-            replay_buffer.RandomCropNew((obs_shape[-1], obs_shape[-1])))
 
-        self.randnet = randnet
-        if self.randnet:
-            self.rand_conv = nn.Conv2d(obs_shape[0], obs_shape[0], kernel_size=3, padding='same').to(self.device)
+        self.aug = replay_buffer.aug(data_aug, image_pad, obs_shape, degrees, dist_alpha)
+
         self.mse_loss = nn.MSELoss()
         self.visualize = visualize
         self.tag = tag
@@ -261,34 +241,7 @@ class DRQAgent(object):
 
         obs = torch.FloatTensor(obs).to(self.device)
         obs = obs.unsqueeze(0)
-        if self.randnet:
-            action_list = []
-
-            with torch.no_grad():
-                # if np.random.rand(1) < 0.9:
-                #     torch.nn.init.xavier_normal_(self.rand_conv.weight)
-                #     obs_aug = self.rand_conv(obs)
-                # else:
-                obs_aug = obs
-                dist = self.actor(obs_aug)
-                action = dist.sample() if sample else dist.mean
-                action_list.append(action)
-
-                # if np.random.rand(1) < 0.9:
-                torch.nn.init.xavier_normal_(self.rand_conv.weight)
-                obs_aug = self.rand_conv(obs)
-                # else:
-                #     obs_aug = obs
-                dist = self.actor(obs_aug)
-                action = dist.sample() if sample else dist.mean
-                action_list.append(action)
-            action = (sum(action_list)/2).clamp(*self.action_range)
-        elif self.aug_when_act:
-            if self.data_aug == 2:
-                if np.random.rand(1) < 0.5:
-                    self.aug = self.aug_1
-                else:
-                    self.aug = self.aug_2
+        if self.aug_when_act:
             obs_aug = self.aug(obs)
             dist = self.actor(obs_aug)
             action = dist.sample() if sample else dist.mean
@@ -385,19 +338,6 @@ class DRQAgent(object):
             Q1_aug, Q2_aug = self.critic(obs_aug, action)
 
             critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q)
-
-
-        # add feature matching loss when using randnet
-        if self.randnet:
-            with torch.no_grad():
-                features = self.critic.encoder(obs)
-            features_aug = self.critic.encoder(obs_aug)
-
-            fm_loss = self.mse_loss(features, features_aug)
-            weight = 0.002
-            critic_loss += weight*fm_loss
-
-            logger.log('train_critic/fm_loss', weight * fm_loss, step)
 
         logger.log('train_critic/loss', critic_loss, step)
 
