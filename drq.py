@@ -10,6 +10,7 @@ import replay_buffer
 import utils
 import hydra
 import os
+import data_aug_new as new_aug
 
 from sklearn.cluster import KMeans
 from sklearn import manifold
@@ -213,7 +214,7 @@ class DRQAgent(object):
         self.data_aug = data_aug
         self.aug_when_act = aug_when_act
 
-        self.aug = replay_buffer.aug(data_aug, image_pad, obs_shape, degrees, dist_alpha)
+        self.aug = new_aug.aug(data_aug, image_pad, obs_shape, degrees, dist_alpha)
 
         self.mse_loss = nn.MSELoss()
         self.visualize = visualize
@@ -327,7 +328,8 @@ class DRQAgent(object):
                 if not os.path.exists(path + '/seed_' + str(self.seed)):
                     os.mkdir(path + '/seed_' + str(self.seed))
                 np.savez(path + '/seed_' + str(self.seed) + '/tsne-' + str(step) + '.npz',
-                         target_Q=target_Q.cpu().numpy(), target_Q_aug=target_Q_aug.cpu().numpy(), Y=Y)
+                         target_Q=target_Q.cpu().numpy(), target_Q_aug=target_Q_aug.cpu().numpy(), Y=Y,
+                         next_action=next_action.cpu().numpy(), next_action_aug=next_action_aug.cpu().numpy())
 
         # get current Q estimates
         current_Q1, current_Q2 = self.critic(obs, action)

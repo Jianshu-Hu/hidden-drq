@@ -112,7 +112,8 @@ prefix_3 = ['cheetah_run+RAD_crop+visualize+determinitic',
 prefix_4 = ['cheetah_run+DrQ_crop+visualize+deterministic',
             'cheetah_run+DrQ_crop+aug_when_act+visualize+deterministic',
             'cheetah_run+DrQ_remove_01_00_crop+aug_when_act+visualize+deterministic',
-            'cheetah_run+DrQ_rotation_05_crop+aug_when_act+visualize+deterministic']
+            'cheetah_run+DrQ_rotation_05_crop+aug_when_act+visualize+deterministic',
+            'cheetah_run+DrQ_alpha_06_crop+aug_when_act+visualize+deterministic']
 domain_2 = 'walker_run_new'
 prefix_2 = ['walker_run+sac+visualize_crop',
             'walker_run+RAD+visualize_crop', 'walker_run+RAD+aug_when_act+visualize_crop',
@@ -123,13 +124,15 @@ prefix_5 = ['walker_run+DrQ_crop+visualize+deterministic',
             'walker_run+DrQ_crop+aug_when_evaluate+visualize+deterministic',
             'walker_run+DrQ_crop+aug_when_act+visualize+deterministic',
             'walker_run+DrQ_remove_01_00_crop+aug_when_act+visualize+deterministic',
-            'walker_run+DrQ_rotation_5_crop+aug_when_act+visualize+deterministic']
+            'walker_run+DrQ_rotation_5_crop+aug_when_act+visualize+deterministic',
+            'walker_run+DrQ_alpha_06_crop+aug_when_act+visualize+deterministic']
 domain_3 = 'reacher_hard'
 
 prefix_6 = ['reacher_hard+DrQ_crop+visualize+deterministic',
             'reacher_hard+DrQ_180_rotation+visualize+deterministic',
             'reacher_hard+DrQ_180_rotation+aug_when_act+visualize+deterministic',
-            'reacher_hard+DrQ_15_180_rotation+aug_when_act+visualize+deterministic']
+            'reacher_hard+DrQ_15_180_rotation+aug_when_act+visualize+deterministic',
+            'reacher_hard+DrQ_alpha_06_rotation+aug_when_act+visualize+deterministic']
 
 # 2.20
 # plot_percentage(domain_1, prefix_1, title='original')
