@@ -23,6 +23,7 @@ visualize: false
 dist_alpha: 0.6
 add_kl_loss: false
 add_actor_obs_aug_loss: false
+update_beta: false
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -69,6 +70,7 @@ agent:
     dist_alpha: ${dist_alpha}
     add_kl_loss: ${add_kl_loss}
     add_actor_obs_aug_loss: ${add_actor_obs_aug_loss}
+    update_beta: ${update_beta}
 
 
 critic:

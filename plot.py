@@ -72,16 +72,18 @@ folders_24 = ['rad+visualize+deterministic',
               'rad+aug_when_act+visualize+deterministic',
               'drq+visualize+deterministic',
               'drq+aug_when_evaluate+visualize+deterministic',
-              'drq+aug_when_act+visualize+deterministic',
-              'drq+kl_loss+crop+visualize+deterministic',
-              'drq+actor_obs_aug_loss+crop+visualize+deterministic',
-              'drq+kl_loss+crop+aug_when_act+visualize+deterministic']
+              'drq+aug_when_act+visualize+deterministic']
 folders_25 = ['drq+visualize+deterministic',
               'drq+aug_when_act+visualize+deterministic',
               'drq+remove_01_00_crop+aug_when_act+visualize+deterministic',
               'drq+rotation_5_crop+aug_when_act+visualize+deterministic',
               'drq+alpha_06_crop+aug_when_act+visualize+deterministic',
               'drq+alpha_08_crop+aug_when_act+visualize+deterministic']
+
+folders_28 = ['drq+visualize+deterministic', 'drq+kl_loss+crop+visualize+deterministic',
+              'drq+actor_obs_aug_loss+crop+visualize+deterministic',
+              'drq+kl_loss+crop+aug_when_act+visualize+deterministic',
+              'drq+beta_kl_loss+crop+visualize+deterministic']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -243,14 +245,14 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # 2.20
 # plot_several_folders(prefix=prefix_7, folders=folders_22, title='walker_run_visualize')
 # plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_run_visualize')
-
+# plot_several_folders(prefix=prefix_2, folders=folders_24, title='cheetah_run_deterministic_aug_when_act')
 # 2.27
 
 # 3.6
-plot_several_folders(prefix=prefix_2, folders=folders_24, title='cheetah_run_deterministic_aug_when_act')
 plot_several_folders(prefix=prefix_2, folders=folders_25, title='cheetah_run_deterministic_different_aug')
 plot_several_folders(prefix=prefix_7, folders=folders_26, title='walker_run_deterministic')
 plot_several_folders(prefix=prefix_3, folders=folders_27, title='reacher_hard_deterministic')
+plot_several_folders(prefix=prefix_2, folders=folders_28, title='cheetah_run_deterministic_kl')
 
 # import torch
 # alpha = 0.8

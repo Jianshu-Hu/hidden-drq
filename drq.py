@@ -191,7 +191,8 @@ class DRQAgent(object):
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, image_pad, data_aug, aug_when_act,
-                 degrees, visualize, tag, seed, dist_alpha, add_kl_loss, add_actor_obs_aug_loss):
+                 degrees, visualize, tag, seed, dist_alpha, add_kl_loss, add_actor_obs_aug_loss,
+                 update_beta):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -236,6 +237,7 @@ class DRQAgent(object):
         self.tag = tag
         self.seed = seed
         self.add_kl_loss = add_kl_loss
+        self.update_beta = update_beta
         if self.add_kl_loss:
             init_beta = 1.0
             target_KL = 0.02
@@ -422,20 +424,22 @@ class DRQAgent(object):
             dist1 = utils.SquashedNormal(mu, std)
             dist1_aug = utils.SquashedNormal(mu_aug, std_aug)
 
-            KL = self.beta.detach()*torch.mean(kl_divergence(dist1, dist1_aug))
+            KL = torch.mean(kl_divergence(dist1, dist1_aug))
+            weighted_KL = self.beta.detach()*KL
             logger.log('train_actor/KL_loss', KL, step)
 
             self.actor_optimizer.zero_grad()
-            KL.backward()
+            weighted_KL.backward()
             self.actor_optimizer.step()
 
-            # update beta
-            beta_loss = -(self.beta * (KL - self.target_KL).detach()).mean()
-            logger.log('train_beta/loss', beta_loss, step)
-            logger.log('train_beta/value', self.beta, step)
-            self.log_beta_optimizer.zero_grad()
-            beta_loss.backward()
-            self.log_beta_optimizer.step()
+            if self.update_beta:
+                # update beta
+                beta_loss = -(self.beta * (KL - self.target_KL).detach()).mean()
+                logger.log('train_beta/loss', beta_loss, step)
+                logger.log('train_beta/value', self.beta, step)
+                self.log_beta_optimizer.zero_grad()
+                beta_loss.backward()
+                self.log_beta_optimizer.step()
 
         self.log_alpha_optimizer.zero_grad()
         alpha_loss = (self.alpha *
