@@ -72,12 +72,16 @@ folders_24 = ['rad+visualize+deterministic',
               'rad+aug_when_act+visualize+deterministic',
               'drq+visualize+deterministic',
               'drq+aug_when_evaluate+visualize+deterministic',
-              'drq+aug_when_act+visualize+deterministic']
+              'drq+aug_when_act+visualize+deterministic',
+              'drq+kl_loss+crop+visualize+deterministic',
+              'drq+actor_obs_aug_loss+crop+visualize+deterministic',
+              'drq+kl_loss+crop+aug_when_act+visualize+deterministic']
 folders_25 = ['drq+visualize+deterministic',
               'drq+aug_when_act+visualize+deterministic',
               'drq+remove_01_00_crop+aug_when_act+visualize+deterministic',
               'drq+rotation_5_crop+aug_when_act+visualize+deterministic',
-              'drq+alpha_06_crop+aug_when_act+visualize+deterministic']
+              'drq+alpha_06_crop+aug_when_act+visualize+deterministic',
+              'drq+alpha_08_crop+aug_when_act+visualize+deterministic']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -97,7 +101,8 @@ folders_21 = ['drq+rotation_180+aug_when_act', 'randnet', 'randnet_rand_both', '
 folders_27 = ['drq_crop+visualize+deterministic', 'drq_180_rotation+visualize+deterministic',
               'drq_180_rotation+aug_when_act+visualize+deterministic',
               'drq+15_180_rotation+aug_when_act+visualize+deterministic',
-              'drq+alpha_06_180_rotation+aug_when_act+visualize+deterministic']
+              'drq+alpha_06_180_rotation+aug_when_act+visualize+deterministic',
+              'drq+alpha_08_180_rotation+aug_when_act+visualize+deterministic']
 
 prefix_4 = 'saved_runs/walker_walk/'
 prefix_5 = 'saved_runs/pendulum/'
@@ -117,7 +122,8 @@ folders_26 = ['drq+visualize+deterministic', 'drq+aug_when_evaluate+visualize+de
               'drq+aug_when_act+visualize+deterministic',
               'drq+remove_01_00_crop+aug_when_act+visualize+deterministic',
               'drq+rotation_5_crop+aug_when_act+visualize+deterministic',
-              'drq+alpha_06_crop+aug_when_act+visualize+deterministic']
+              'drq+alpha_06_crop+aug_when_act+visualize+deterministic',
+              'drq+alpha_08_crop+aug_when_act+visualize+deterministic']
 
 prefix_8 = 'saved_runs/ballincup_catch/'
 folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -239,9 +245,9 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # plot_several_folders(prefix=prefix_2, folders=folders_23, title='cheetah_run_visualize')
 
 # 2.27
-# plot_several_folders(prefix=prefix_2, folders=folders_24, title='cheetah_run_deterministic_aug_when_act')
 
 # 3.6
+plot_several_folders(prefix=prefix_2, folders=folders_24, title='cheetah_run_deterministic_aug_when_act')
 plot_several_folders(prefix=prefix_2, folders=folders_25, title='cheetah_run_deterministic_different_aug')
 plot_several_folders(prefix=prefix_7, folders=folders_26, title='walker_run_deterministic')
 plot_several_folders(prefix=prefix_3, folders=folders_27, title='reacher_hard_deterministic')

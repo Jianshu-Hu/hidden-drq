@@ -21,6 +21,8 @@ black_background: false
 degrees: 30.0
 visualize: false
 dist_alpha: 0.6
+add_kl_loss: false
+add_actor_obs_aug_loss: false
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -65,6 +67,8 @@ agent:
     tag: ${tag}
     seed: ${seed}
     dist_alpha: ${dist_alpha}
+    add_kl_loss: ${add_kl_loss}
+    add_actor_obs_aug_loss: ${add_actor_obs_aug_loss}
 
 
 critic:

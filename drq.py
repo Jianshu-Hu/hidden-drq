@@ -14,6 +14,7 @@ import data_aug_new as new_aug
 
 from sklearn.cluster import KMeans
 from sklearn import manifold
+from torch.distributions import kl_divergence
 
 
 class Encoder(nn.Module):
@@ -119,6 +120,20 @@ class Actor(nn.Module):
         dist = utils.SquashedNormal(mu, std)
         return dist
 
+    def forward_mu_std(self, obs, detach_encoder=False):
+        obs = self.encoder(obs, detach=detach_encoder)
+
+        mu, log_std = self.trunk(obs).chunk(2, dim=-1)
+
+        # constrain log_std inside [log_std_min, log_std_max]
+        log_std = torch.tanh(log_std)
+        log_std_min, log_std_max = self.log_std_bounds
+        log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std +
+                                                                     1)
+        std = log_std.exp()
+
+        return mu, std
+
     def log(self, logger, step):
         for k, v in self.outputs.items():
             logger.log_histogram(f'train_actor/{k}_hist', v, step)
@@ -176,7 +191,7 @@ class DRQAgent(object):
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, image_pad, data_aug, aug_when_act,
-                 degrees, visualize, tag, seed, dist_alpha):
+                 degrees, visualize, tag, seed, dist_alpha, add_kl_loss, add_actor_obs_aug_loss):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -220,6 +235,16 @@ class DRQAgent(object):
         self.visualize = visualize
         self.tag = tag
         self.seed = seed
+        self.add_kl_loss = add_kl_loss
+        if self.add_kl_loss:
+            init_beta = 1.0
+            target_KL = 0.02
+            self.log_beta = torch.tensor([np.log(init_beta)]).to(self.device)
+            self.log_beta.requires_grad = True
+            # set target KL divergence
+            self.target_KL = target_KL
+            self.log_beta_optimizer = torch.optim.Adam([self.log_beta], lr=lr)
+        self.add_actor_obs_aug_loss = add_actor_obs_aug_loss
         if self.visualize:
             # these two augmentations are used for testing with sac in which the observations are not augmented
             if self.data_aug == -1:
@@ -237,6 +262,10 @@ class DRQAgent(object):
     @property
     def alpha(self):
         return self.log_alpha.exp()
+
+    @property
+    def beta(self):
+        return self.log_beta.exp()
 
     def act(self, obs, sample=False):
 
@@ -350,7 +379,7 @@ class DRQAgent(object):
 
         self.critic.log(logger, step)
 
-    def update_actor_and_alpha(self, obs, logger, step):
+    def update_actor_and_alpha(self, obs, obs_aug, logger, step):
         # detach conv filters, so we don't update them with the actor loss
         dist = self.actor(obs, detach_encoder=True)
         action = dist.rsample()
@@ -362,6 +391,19 @@ class DRQAgent(object):
 
         actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
 
+        if self.add_actor_obs_aug_loss:
+            dist_aug = self.actor(obs_aug, detach_encoder=True)
+            action_aug = dist_aug.rsample()
+            log_prob_aug = dist_aug.log_prob(action_aug).sum(-1, keepdim=True)
+            # detach conv filters, so we don't update them with the actor loss
+            actor_Q1_aug, actor_Q2_aug = self.critic(obs_aug, action_aug, detach_encoder=True)
+
+            actor_Q_aug = torch.min(actor_Q1_aug, actor_Q2_aug)
+
+            actor_loss_aug = (self.alpha.detach() * log_prob_aug - actor_Q_aug).mean()
+
+            actor_loss += actor_loss_aug
+
         logger.log('train_actor/loss', actor_loss, step)
         logger.log('train_actor/target_entropy', self.target_entropy, step)
         logger.log('train_actor/entropy', -log_prob.mean(), step)
@@ -370,8 +412,30 @@ class DRQAgent(object):
         self.actor_optimizer.zero_grad()
         actor_loss.backward()
         self.actor_optimizer.step()
-
         self.actor.log(logger, step)
+
+        if self.add_kl_loss:
+            # KL divergence between A(obs) and A(obs_aug)
+            with torch.no_grad():
+                mu, std = self.actor.forward_mu_std(obs)
+            mu_aug, std_aug = self.actor.forward_mu_std(obs_aug, detach_encoder=True)
+            dist1 = utils.SquashedNormal(mu, std)
+            dist1_aug = utils.SquashedNormal(mu_aug, std_aug)
+
+            KL = self.beta.detach()*torch.mean(kl_divergence(dist1, dist1_aug))
+            logger.log('train_actor/KL_loss', KL, step)
+
+            self.actor_optimizer.zero_grad()
+            KL.backward()
+            self.actor_optimizer.step()
+
+            # update beta
+            beta_loss = -(self.beta * (KL - self.target_KL).detach()).mean()
+            logger.log('train_beta/loss', beta_loss, step)
+            logger.log('train_beta/value', self.beta, step)
+            self.log_beta_optimizer.zero_grad()
+            beta_loss.backward()
+            self.log_beta_optimizer.step()
 
         self.log_alpha_optimizer.zero_grad()
         alpha_loss = (self.alpha *
@@ -391,7 +455,7 @@ class DRQAgent(object):
                            next_obs_aug, not_done, logger, step, RAD)
 
         if step % self.actor_update_frequency == 0:
-            self.update_actor_and_alpha(obs, logger, step)
+            self.update_actor_and_alpha(obs, obs_aug, logger, step)
 
         if step % self.critic_target_update_frequency == 0:
             utils.soft_update_params(self.critic, self.critic_target,

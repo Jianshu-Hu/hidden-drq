@@ -58,24 +58,11 @@ class ReplayBuffer(object):
         not_dones_no_max = torch.as_tensor(self.not_dones_no_max[idxs], device=self.device)
 
         if self.data_aug > 0:
-            if self.data_aug in {5, 6}:
-                # if we use torchvision, we need this setting to make sure different augmentations
-                # are applied within the mini-batch
-                obses = torchvision.transforms.Lambda(
-                    lambda x: torch.stack([self.aug(x_) for x_ in x]))(obses)
-                next_obses = torchvision.transforms.Lambda(
-                    lambda x: torch.stack([self.aug(x_) for x_ in x]))(next_obses)
+            obses = self.aug(obses)
+            next_obses = self.aug(next_obses)
 
-                obses_aug = torchvision.transforms.Lambda(
-                    lambda x: torch.stack([self.aug(x_) for x_ in x]))(obses_aug)
-                next_obses_aug = torchvision.transforms.Lambda(
-                    lambda x: torch.stack([self.aug(x_) for x_ in x]))(next_obses_aug)
-            else:
-                obses = self.aug(obses)
-                next_obses = self.aug(next_obses)
-
-                obses_aug = self.aug(obses_aug)
-                next_obses_aug = self.aug(next_obses_aug)
+            obses_aug = self.aug(obses_aug)
+            next_obses_aug = self.aug(next_obses_aug)
         else:
             # without data aug
             pass
