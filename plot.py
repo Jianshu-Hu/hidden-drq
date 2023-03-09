@@ -51,6 +51,7 @@ def plot_several_folders(prefix, folders, label_list=[], plot_or_save='save', ti
 prefix_1 = 'saved_runs/cartpole/'
 
 prefix_2 = 'saved_runs/cheetah_run/'
+prefix_2_1 = 'saved_runs/cheetah_run_deterministic/'
 folders_5 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
 folders_7 = ['drq+batch_256', 'drq+rotation+batch_256', 'drq+cycnn+batch_256', 'drq+rotation+cycnn+batch_256']
@@ -83,7 +84,15 @@ folders_25 = ['drq+visualize+deterministic',
 folders_28 = ['drq+visualize+deterministic', 'drq+kl_loss+crop+visualize+deterministic',
               'drq+actor_obs_aug_loss+crop+visualize+deterministic',
               'drq+kl_loss+crop+aug_when_act+visualize+deterministic',
-              'drq+beta_kl_loss+crop+visualize+deterministic']
+              'drq+actor_obs_aug_loss+crop+aug_when_act+visualize+deterministic',
+              'drq+beta_kl_loss+crop+visualize+deterministic',
+              'drq+alpha_08_crop+kl_loss+visualize+deterministic']
+
+folders_30 = ['rad+visualize_action+deterministic',
+              'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
+              'drq+critic_loss_div_2+visualize+deterministic',
+              'drq+not_average_target+critic_loss_div_2+actor_two+visualize+deterministic',
+              'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -111,6 +120,7 @@ prefix_5 = 'saved_runs/pendulum/'
 prefix_6 = 'saved_runs/hopper/'
 
 prefix_7 = 'saved_runs/walker_run/'
+prefix_7_1 = 'saved_runs/walker_run_deterministic/'
 folders_2 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
 folders_4 = ['drq', 'drq+cycnn']
@@ -126,6 +136,13 @@ folders_26 = ['drq+visualize+deterministic', 'drq+aug_when_evaluate+visualize+de
               'drq+rotation_5_crop+aug_when_act+visualize+deterministic',
               'drq+alpha_06_crop+aug_when_act+visualize+deterministic',
               'drq+alpha_08_crop+aug_when_act+visualize+deterministic']
+folders_29 = ['drq+visualize+deterministic', 'drq+kl_loss+crop+visualize+deterministic',
+              'drq+kl_loss+crop+aug_when_act+visualize+deterministic',
+              'drq+alpha_08_crop+kl_loss+visualize+deterministic']
+folders_31 = ['rad+visualize+deterministic', 'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
+              'drq+critic_loss_div_2+visualize+deterministic',
+              'drq+not_average_target+critic_loss_div_2+actor_two+visualize+deterministic',
+              'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic']
 
 prefix_8 = 'saved_runs/ballincup_catch/'
 folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -249,10 +266,15 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # 2.27
 
 # 3.6
-plot_several_folders(prefix=prefix_2, folders=folders_25, title='cheetah_run_deterministic_different_aug')
-plot_several_folders(prefix=prefix_7, folders=folders_26, title='walker_run_deterministic')
-plot_several_folders(prefix=prefix_3, folders=folders_27, title='reacher_hard_deterministic')
-plot_several_folders(prefix=prefix_2, folders=folders_28, title='cheetah_run_deterministic_kl')
+# plot_several_folders(prefix=prefix_2, folders=folders_25, title='cheetah_run_deterministic_different_aug')
+# plot_several_folders(prefix=prefix_7, folders=folders_26, title='walker_run_deterministic')
+# plot_several_folders(prefix=prefix_3, folders=folders_27, title='reacher_hard_deterministic')
+# plot_several_folders(prefix=prefix_2, folders=folders_28, title='cheetah_run_deterministic_kl')
+# plot_several_folders(prefix=prefix_7, folders=folders_29, title='walker_run_deterministic_kl')
+
+# 3.13
+plot_several_folders(prefix=prefix_2_1, folders=folders_30, title='cheetah_run_deterministic_more_samples')
+plot_several_folders(prefix=prefix_7_1, folders=folders_31, title='walker_run_deterministic_more_samples')
 
 # import torch
 # alpha = 0.8

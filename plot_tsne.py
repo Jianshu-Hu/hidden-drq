@@ -5,7 +5,7 @@ import os
 import math
 
 
-def compare_pairs(file,action=False):
+def compare_pairs(file, action=False):
     data = np.load(file)
     Y = data['Y']
     batch_size = 512

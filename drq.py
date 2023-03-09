@@ -192,7 +192,7 @@ class DRQAgent(object):
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, image_pad, data_aug, aug_when_act,
                  degrees, visualize, tag, seed, dist_alpha, add_kl_loss, add_actor_obs_aug_loss,
-                 update_beta):
+                 update_beta, avg_target):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -238,6 +238,7 @@ class DRQAgent(object):
         self.seed = seed
         self.add_kl_loss = add_kl_loss
         self.update_beta = update_beta
+        self.avg_target = avg_target
         if self.add_kl_loss:
             init_beta = 1.0
             target_KL = 0.02
@@ -308,7 +309,8 @@ class DRQAgent(object):
                     target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
                 target_Q_aug = reward + (not_done * self.discount * target_V)
 
-                target_Q = (target_Q + target_Q_aug) / 2
+                if self.avg_target:
+                    target_Q = (target_Q + target_Q_aug) / 2
 
         # visualize the embedding
         if self.visualize:
@@ -369,8 +371,11 @@ class DRQAgent(object):
         if not RAD:
             # DrQ
             Q1_aug, Q2_aug = self.critic(obs_aug, action)
-
-            critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q)
+            if self.avg_target:
+                critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q)
+            else:
+                critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q_aug)
+            critic_loss = critic_loss/2
 
         logger.log('train_critic/loss', critic_loss, step)
 
@@ -405,6 +410,8 @@ class DRQAgent(object):
             actor_loss_aug = (self.alpha.detach() * log_prob_aug - actor_Q_aug).mean()
 
             actor_loss += actor_loss_aug
+
+            actor_loss = actor_loss/2
 
         logger.log('train_actor/loss', actor_loss, step)
         logger.log('train_actor/target_entropy', self.target_entropy, step)
