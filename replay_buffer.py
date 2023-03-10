@@ -45,13 +45,17 @@ class ReplayBuffer(object):
 
         obses = self.obses[idxs]
         next_obses = self.next_obses[idxs]
-        obses_aug = obses.copy()
-        next_obses_aug = next_obses.copy()
+        obses_aug_1 = obses.copy()
+        next_obses_aug_1 = next_obses.copy()
+        obses_aug_2 = obses.copy()
+        next_obses_aug_2 = next_obses.copy()
 
         obses = torch.as_tensor(obses, device=self.device).float()
         next_obses = torch.as_tensor(next_obses, device=self.device).float()
-        obses_aug = torch.as_tensor(obses_aug, device=self.device).float()
-        next_obses_aug = torch.as_tensor(next_obses_aug, device=self.device).float()
+        obses_aug_1 = torch.as_tensor(obses_aug_1, device=self.device).float()
+        next_obses_aug_1 = torch.as_tensor(next_obses_aug_1, device=self.device).float()
+        obses_aug_2 = torch.as_tensor(obses_aug_2, device=self.device).float()
+        next_obses_aug_2 = torch.as_tensor(next_obses_aug_2, device=self.device).float()
 
         actions = torch.as_tensor(self.actions[idxs], device=self.device)
         rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
@@ -61,12 +65,16 @@ class ReplayBuffer(object):
             obses = self.aug(obses)
             next_obses = self.aug(next_obses)
 
-            obses_aug = self.aug(obses_aug)
-            next_obses_aug = self.aug(next_obses_aug)
+            obses_aug_1 = self.aug(obses_aug_1)
+            next_obses_aug_1 = self.aug(next_obses_aug_1)
+
+            obses_aug_2 = self.aug(obses_aug_2)
+            next_obses_aug_2 = self.aug(next_obses_aug_2)
         else:
             # without data aug
             pass
 
-        return obses, actions, rewards, next_obses, not_dones_no_max, obses_aug, next_obses_aug
+        return obses, actions, rewards, next_obses, not_dones_no_max,\
+               obses_aug_1, next_obses_aug_1, obses_aug_2, next_obses_aug_2
 
 

@@ -190,9 +190,9 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size, image_pad, data_aug, aug_when_act,
+                 critic_target_update_frequency, batch_size, image_pad, data_aug, RAD, aug_when_act,
                  degrees, visualize, tag, seed, dist_alpha, add_kl_loss, add_actor_obs_aug_loss,
-                 update_beta, avg_target):
+                 update_beta, avg_target, tangent_prop):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -230,15 +230,19 @@ class DRQAgent(object):
         self.data_aug = data_aug
         self.aug_when_act = aug_when_act
 
+        self.image_pad = image_pad
         self.aug = new_aug.aug(data_aug, image_pad, obs_shape, degrees, dist_alpha)
+        self.tangent_prop = new_aug.TangentProp(data_aug, image_pad)
 
         self.mse_loss = nn.MSELoss()
+        self.RAD = RAD
         self.visualize = visualize
         self.tag = tag
         self.seed = seed
         self.add_kl_loss = add_kl_loss
         self.update_beta = update_beta
         self.avg_target = avg_target
+        self.tangent_prop = tangent_prop
         if self.add_kl_loss:
             init_beta = 1.0
             target_KL = 0.02
@@ -286,8 +290,8 @@ class DRQAgent(object):
         assert action.ndim == 2 and action.shape[0] == 1
         return utils.to_np(action[0])
 
-    def update_critic(self, obs, obs_aug, action, reward, next_obs,
-                      next_obs_aug, not_done, logger, step, RAD):
+    def update_critic(self, obs, obs_aug_1, obs_aug_2, action, reward, next_obs,
+                      next_obs_aug_1, next_obs_aug_2, not_done, logger, step):
         with torch.no_grad():
             dist = self.actor(next_obs)
             next_action = dist.rsample()
@@ -297,60 +301,33 @@ class DRQAgent(object):
                                  target_Q2) - self.alpha.detach() * log_prob
             target_Q = reward + (not_done * self.discount * target_V)
 
-            if not RAD:
-                # DrQ
-                dist_aug = self.actor(next_obs_aug)
-                next_action_aug = dist_aug.rsample()
-                log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1,
-                                                                      keepdim=True)
-                target_Q1, target_Q2 = self.critic_target(next_obs_aug,
-                                                          next_action_aug)
-                target_V = torch.min(
-                    target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
-                target_Q_aug = reward + (not_done * self.discount * target_V)
+            dist_aug_1 = self.actor(next_obs_aug_1)
+            next_action_aug_1 = dist_aug_1.rsample()
+            log_prob_aug_1 = dist_aug_1.log_prob(next_action_aug_1).sum(-1,
+                                                                  keepdim=True)
+            target_Q1, target_Q2 = self.critic_target(next_obs_aug_1,
+                                                      next_action_aug_1)
+            target_V = torch.min(
+                target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_1
+            target_Q_aug_1 = reward + (not_done * self.discount * target_V)
 
-                if self.avg_target:
-                    target_Q = (target_Q + target_Q_aug) / 2
+            dist_aug_2 = self.actor(next_obs_aug_2)
+            next_action_aug_2 = dist_aug_2.rsample()
+            log_prob_aug_2 = dist_aug_2.log_prob(next_action_aug_2).sum(-1,
+                                                                  keepdim=True)
+            target_Q1, target_Q2 = self.critic_target(next_obs_aug_2,
+                                                      next_action_aug_2)
+            target_V = torch.min(
+                target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_2
+            target_Q_aug_2 = reward + (not_done * self.discount * target_V)
 
         # visualize the embedding
         if self.visualize:
             if step % 5000 == 0:
                 t_sne = manifold.TSNE(n_components=2, init='pca', random_state=self.seed)
                 with torch.no_grad():
-                    if self.data_aug < 0:
-                        # the observations are not augmented before
-                        temp_obs = self.aug(obs)
-                        temp_obs_aug = self.aug(obs_aug)
-
-                        temp_next_obs = self.aug(next_obs)
-                        temp_next_obs_aug = self.aug(next_obs_aug)
-
-                        dist = self.actor(temp_next_obs)
-                        next_action = dist.rsample()
-                        log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
-                        target_Q1, target_Q2 = self.critic_target(temp_next_obs, next_action)
-                        target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob
-                        target_Q = reward + (not_done * self.discount * target_V)
-
-                        dist_aug = self.actor(temp_next_obs_aug)
-                        next_action_aug = dist_aug.rsample()
-                        log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1, keepdim=True)
-                        target_Q1, target_Q2 = self.critic_target(temp_next_obs_aug, next_action_aug)
-                        target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
-                        target_Q_aug = reward + (not_done * self.discount * target_V)
-
-                        X1 = self.critic.encoder(temp_obs).cpu().numpy()
-                        X2 = self.critic.encoder(temp_obs_aug).cpu().numpy()
-                    else:
-                        if RAD:
-                            dist_aug = self.actor(next_obs_aug)
-                            next_action_aug = dist_aug.rsample()
-                            log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1, keepdim=True)
-                            target_Q1, target_Q2 = self.critic_target(next_obs_aug, next_action_aug)
-                            target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
-                            target_Q_aug = reward + (not_done * self.discount * target_V)
-                        X1 = self.critic.encoder(obs).cpu().numpy()
-                        X2 = self.critic.encoder(obs_aug).cpu().numpy()
+                    X1 = self.critic.encoder(obs_aug_1).cpu().numpy()
+                    X2 = self.critic.encoder(obs_aug_2).cpu().numpy()
 
                 Y = t_sne.fit_transform(np.vstack((X1, X2)))
                 # save the projected embedding
@@ -361,23 +338,56 @@ class DRQAgent(object):
                 if not os.path.exists(path + '/seed_' + str(self.seed)):
                     os.mkdir(path + '/seed_' + str(self.seed))
                 np.savez(path + '/seed_' + str(self.seed) + '/tsne-' + str(step) + '.npz',
-                         target_Q=target_Q.cpu().numpy(), target_Q_aug=target_Q_aug.cpu().numpy(), Y=Y,
-                         next_action=next_action.cpu().numpy(), next_action_aug=next_action_aug.cpu().numpy())
+                         target_Q=target_Q.cpu().numpy(), target_Q_aug=target_Q_aug_1.cpu().numpy(), Y=Y,
+                         next_action=next_action.cpu().numpy(), next_action_aug=next_action_aug_1.cpu().numpy())
 
-        # get current Q estimates
-        current_Q1, current_Q2 = self.critic(obs, action)
-        critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+        if self.tangent_prop:
+            obs.requires_grad = True
+            # get current Q estimates
+            current_Q1, current_Q2 = self.critic(obs, action)
+            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
 
-        if not RAD:
-            # DrQ
-            Q1_aug, Q2_aug = self.critic(obs_aug, action)
-            if self.avg_target:
-                critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q)
+            logger.log('train_critic/loss', critic_loss, step)
+
+            # add regularization for tangent prop
+            # calculate the Jacobian matrix for non-linear model
+            current_Q1.backward(torch.ones_like(current_Q1), retain_graph=True)
+            jacobian1 = torch.clone(obs.grad)
+            obs.grad.zero_()
+            current_Q2.backward(torch.ones_like(current_Q2), retain_graph=True)
+            jacobian2 = torch.clone(obs.grad)
+            obs.grad.zero_()
+
+            # calculate the gradient with respect to the data aug parameter
+            tangent_vector = self.tangent_prop.tangent_vector(obs)
+
+            tan_loss1 = torch.mean(torch.mean(
+                torch.linalg.matrix_norm(jacobian1 * tangent_vector), dim=-1), dim=-1)
+            tan_loss2 = torch.mean(torch.mean(
+                torch.linalg.matrix_norm(jacobian2 * tangent_vector), dim=-1), dim=-1)
+
+            tangent_prop_loss = 0.1*(tan_loss1+tan_loss2)
+            critic_loss += tangent_prop_loss
+
+            logger.log('train_critic/tangent_prop_loss', tangent_prop_loss, step)
+        else:
+            if not self.RAD:
+                Q1_aug_1, Q2_aug_1 = self.critic(obs_aug_1, action)
+                Q1_aug_2, Q2_aug_2 = self.critic(obs_aug_2, action)
+                if self.avg_target:
+                    # DrQ
+                    target_Q = (target_Q_aug_1 + target_Q_aug_2) / 2
+                    critic_loss = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
+                    critic_loss += F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
+                else:
+                    # DrQ without average target / RAD with two samples
+                    critic_loss = F.mse_loss(Q1_aug_1, target_Q_aug_1) + F.mse_loss(Q2_aug_1, target_Q_aug_1)
+                    critic_loss += F.mse_loss(Q1_aug_2, target_Q_aug_2) + F.mse_loss(Q2_aug_2, target_Q_aug_2)
             else:
-                critic_loss += F.mse_loss(Q1_aug, target_Q) + F.mse_loss(Q2_aug, target_Q_aug)
-            critic_loss = critic_loss/2
+                # apply data augmentation
+                current_Q1, current_Q2 = self.critic(obs_aug_1, action)
+                critic_loss = F.mse_loss(current_Q1, target_Q_aug_1) + F.mse_loss(current_Q2, target_Q_aug_1)
 
-        logger.log('train_critic/loss', critic_loss, step)
 
         # Optimize the critic
         self.critic_optimizer.zero_grad()
@@ -386,24 +396,24 @@ class DRQAgent(object):
 
         self.critic.log(logger, step)
 
-    def update_actor_and_alpha(self, obs, obs_aug, logger, step):
+    def update_actor_and_alpha(self, obs, obs_aug_1, obs_aug_2, logger, step):
         # detach conv filters, so we don't update them with the actor loss
-        dist = self.actor(obs, detach_encoder=True)
+        dist = self.actor(obs_aug_1, detach_encoder=True)
         action = dist.rsample()
         log_prob = dist.log_prob(action).sum(-1, keepdim=True)
         # detach conv filters, so we don't update them with the actor loss
-        actor_Q1, actor_Q2 = self.critic(obs, action, detach_encoder=True)
+        actor_Q1, actor_Q2 = self.critic(obs_aug_1, action, detach_encoder=True)
 
         actor_Q = torch.min(actor_Q1, actor_Q2)
 
         actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
 
         if self.add_actor_obs_aug_loss:
-            dist_aug = self.actor(obs_aug, detach_encoder=True)
+            dist_aug = self.actor(obs_aug_2, detach_encoder=True)
             action_aug = dist_aug.rsample()
             log_prob_aug = dist_aug.log_prob(action_aug).sum(-1, keepdim=True)
             # detach conv filters, so we don't update them with the actor loss
-            actor_Q1_aug, actor_Q2_aug = self.critic(obs_aug, action_aug, detach_encoder=True)
+            actor_Q1_aug, actor_Q2_aug = self.critic(obs_aug_2, action_aug, detach_encoder=True)
 
             actor_Q_aug = torch.min(actor_Q1_aug, actor_Q2_aug)
 
@@ -424,10 +434,10 @@ class DRQAgent(object):
         self.actor.log(logger, step)
 
         if self.add_kl_loss:
-            # KL divergence between A(obs) and A(obs_aug)
+            # KL divergence between A(obs_aug_1) and A(obs_aug_2)
             with torch.no_grad():
-                mu, std = self.actor.forward_mu_std(obs)
-            mu_aug, std_aug = self.actor.forward_mu_std(obs_aug, detach_encoder=True)
+                mu, std = self.actor.forward_mu_std(obs_aug_1)
+            mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_2, detach_encoder=True)
             dist1 = utils.SquashedNormal(mu, std)
             dist1_aug = utils.SquashedNormal(mu_aug, std_aug)
 
@@ -456,17 +466,17 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
-    def update(self, replay_buffer, logger, step, RAD):
-        obs, action, reward, next_obs, not_done, obs_aug, next_obs_aug = replay_buffer.sample(
-            self.batch_size)
+    def update(self, replay_buffer, logger, step):
+        obs, action, reward, next_obs, not_done, obs_aug_1, next_obs_aug_1, obs_aug_2, next_obs_aug_2 \
+            = replay_buffer.sample(self.batch_size)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
-        self.update_critic(obs, obs_aug, action, reward, next_obs,
-                           next_obs_aug, not_done, logger, step, RAD)
+        self.update_critic(obs, obs_aug_1, obs_aug_2, action, reward,
+                           next_obs, next_obs_aug_1, next_obs_aug_2, not_done, logger, step)
 
         if step % self.actor_update_frequency == 0:
-            self.update_actor_and_alpha(obs, obs_aug, logger, step)
+            self.update_actor_and_alpha(obs, obs_aug_1, obs_aug_2, logger, step)
 
         if step % self.critic_target_update_frequency == 0:
             utils.soft_update_params(self.critic, self.critic_target,

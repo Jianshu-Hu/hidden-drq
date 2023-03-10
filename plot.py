@@ -93,6 +93,10 @@ folders_30 = ['rad+visualize_action+deterministic',
               'drq+critic_loss_div_2+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+actor_two+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic']
+folders_32 = ['rad+visualize_action+deterministic',
+              'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
+              'tangent_prop+visualize+deterministic',
+              'tangent_prop_xy_shift+visualize+deterministic']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -275,6 +279,8 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # 3.13
 plot_several_folders(prefix=prefix_2_1, folders=folders_30, title='cheetah_run_deterministic_more_samples')
 plot_several_folders(prefix=prefix_7_1, folders=folders_31, title='walker_run_deterministic_more_samples')
+
+plot_several_folders(prefix=prefix_2_1, folders=folders_32, title='cheetah_run_deterministic_tangent')
 
 # import torch
 # alpha = 0.8

@@ -15,16 +15,21 @@ replay_buffer_capacity: 100000
 seed: 1
 # new
 data_aug: 1
-RAD: false
-aug_when_act: false
-black_background: false
 degrees: 30.0
-visualize: false
 dist_alpha: 0.6
-add_kl_loss: false
-add_actor_obs_aug_loss: false
-update_beta: false
+
+RAD: false
 avg_target: true
+tangent_prop: false
+
+aug_when_act: false
+add_kl_loss: false
+update_beta: false
+add_actor_obs_aug_loss: false
+
+visualize: false
+
+black_background: false
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -63,6 +68,7 @@ agent:
     batch_size: ${batch_size}
     image_pad: ${image_pad}
     data_aug: ${data_aug}
+    RAD: ${RAD}
     aug_when_act: ${aug_when_act}
     degrees: ${degrees}
     visualize: ${visualize}
@@ -73,6 +79,7 @@ agent:
     add_actor_obs_aug_loss: ${add_actor_obs_aug_loss}
     update_beta: ${update_beta}
     avg_target: ${avg_target}
+    tangent_prop: ${tangent_prop}$
 
 
 critic:
