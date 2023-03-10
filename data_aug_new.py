@@ -1,3 +1,4 @@
+import math
 from typing import Dict, Optional, Tuple, Union, List, Any
 
 import torch
@@ -110,46 +111,40 @@ def aug(data_aug, image_pad, obs_shape, degrees, dist_alpha):
 
 
 class TangentProp():
-    def __init__(self, data_aug, image_pad):
+    def __init__(self, data_aug, image_pad, device):
         self.data_aug = data_aug
         self.image_pad = image_pad
+        self.device = device
 
     def tangent_vector(self, obs):
-        if self.data_aug == -1:
-            # tan_vec_variance = torch.zeros_like(obs)
-            # pad = nn.Sequential(
-            #     torch.nn.ReplicationPad2d(1))
-            # # horizontal shift 1 pixel
-            # obs_aug = F.crop(pad(obs), top=1, left=2, height=obs.shape[-1], width=obs.shape[-1])
-            # tan_vector_1 = obs_aug - obs
-            # tan_vec_variance += torch.pow(tan_vector_1, 2)
-            # # vertical shift 1 pixel
-            # obs_aug = F.crop(pad(obs), top=2, left=1, height=obs.shape[-1], width=obs.shape[-1])
-            # tan_vector_2 = obs_aug - obs
-            # tan_vec_variance += torch.pow(tan_vector_2, 2)
-            # tan_vec = torch.pow(tan_vec_variance, 0.5)
+        # tan_vec_variance = torch.zeros_like(obs)
+        # pad = nn.Sequential(
+        #     torch.nn.ReplicationPad2d(1))
+        # # horizontal shift 1 pixel
+        # obs_aug = F.crop(pad(obs), top=1, left=2, height=obs.shape[-1], width=obs.shape[-1])
+        # tan_vector_1 = obs_aug - obs
+        # tan_vec_variance += torch.pow(tan_vector_1, 2)
+        # # vertical shift 1 pixel
+        # obs_aug = F.crop(pad(obs), top=2, left=1, height=obs.shape[-1], width=obs.shape[-1])
+        # tan_vector_2 = obs_aug - obs
+        # tan_vec_variance += torch.pow(tan_vector_2, 2)
+        # tan_vec = torch.pow(tan_vec_variance, 0.5)
 
-            # calculate expected transformed image
-            expected_T_obs = self.expected_transformed_obs(obs)
-            tan_vec = expected_T_obs-obs
-        else:
-            tan_vec = None
-        return tan_vec
-
-    def expected_transformed_obs(self, obs):
-        h, w = obs.shape[-1], obs.shape[-1]
-        if self.data_aug == -1:
-            expected_trans_obs = torch.zeros_like(obs)
+        if self.data_aug == 1:
             pad = nn.Sequential(
                 torch.nn.ReplicationPad2d(self.image_pad))
             pad_obs = pad(obs)
-            for i in range(self.image_pad*2+1):
-                for j in range(self.image_pad*2+1):
-                    expected_trans_obs += pad_obs[:, :, i:i+h, j:j+w]
-            expected_trans_obs = expected_trans_obs/((self.image_pad+1)**2)
+
+            kernal_size = self.image_pad*2+1
+            channel = pad_obs.shape[1]
+            filter = torch.ones((channel, channel, kernal_size, kernal_size),
+                                device=self.device).float() / (kernal_size**2*channel)
+            expected_trans_obs = torch.nn.functional.conv2d(input=pad_obs, weight=filter, stride=1)
+            expected_squa_trans_obs = torch.nn.functional.conv2d(input=torch.pow(pad_obs, 2), weight=filter, stride=1)
+            variance_trans_obs = expected_squa_trans_obs - torch.pow(expected_trans_obs, 2)
         else:
-            expected_trans_obs = None
-        return expected_trans_obs
+            variance_trans_obs = None
+        return torch.pow(variance_trans_obs, 0.5)
 
 
 

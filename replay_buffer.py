@@ -61,18 +61,11 @@ class ReplayBuffer(object):
         rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
         not_dones_no_max = torch.as_tensor(self.not_dones_no_max[idxs], device=self.device)
 
-        if self.data_aug > 0:
-            obses = self.aug(obses)
-            next_obses = self.aug(next_obses)
+        obses_aug_1 = self.aug(obses_aug_1)
+        next_obses_aug_1 = self.aug(next_obses_aug_1)
 
-            obses_aug_1 = self.aug(obses_aug_1)
-            next_obses_aug_1 = self.aug(next_obses_aug_1)
-
-            obses_aug_2 = self.aug(obses_aug_2)
-            next_obses_aug_2 = self.aug(next_obses_aug_2)
-        else:
-            # without data aug
-            pass
+        obses_aug_2 = self.aug(obses_aug_2)
+        next_obses_aug_2 = self.aug(next_obses_aug_2)
 
         return obses, actions, rewards, next_obses, not_dones_no_max,\
                obses_aug_1, next_obses_aug_1, obses_aug_2, next_obses_aug_2
