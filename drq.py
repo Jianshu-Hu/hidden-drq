@@ -232,7 +232,7 @@ class DRQAgent(object):
 
         self.image_pad = image_pad
         self.aug = new_aug.aug(data_aug, image_pad, obs_shape, degrees, dist_alpha)
-        self.tangent_prop = new_aug.TangentProp(data_aug, image_pad)
+        self.tangent_prop_regu = new_aug.TangentProp(data_aug, image_pad)
 
         self.mse_loss = nn.MSELoss()
         self.RAD = RAD
@@ -359,7 +359,7 @@ class DRQAgent(object):
             obs.grad.zero_()
 
             # calculate the gradient with respect to the data aug parameter
-            tangent_vector = self.tangent_prop.tangent_vector(obs)
+            tangent_vector = self.tangent_prop_regu.tangent_vector(obs)
 
             tan_loss1 = torch.mean(torch.mean(
                 torch.linalg.matrix_norm(jacobian1 * tangent_vector), dim=-1), dim=-1)
