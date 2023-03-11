@@ -145,6 +145,11 @@ prefix_4 = ['cheetah_run+DrQ_crop+visualize+deterministic',
 prefix_7 = ['cheetah_run+RAD_crop+visualize_action+deterministic',
             'cheetah_run+DrQ_crop+add_kl_loss+visualize+determinitic']
 
+prefix_8 = ['cheetah_run+RAD_crop+visualize_action+deterministic',
+            'cheetah_run+crop+SAC+tangent_prop+visualize+determinitic',
+            'cheetah_run+crop+SAC+tangent_prop_include_xy_shift+visualize+determinitic',
+            'cheetah_run+crop+SAC+weight_01_tangent_prop_variance+visualize+determinitic']
+
 domain_2 = 'walker_run_new'
 prefix_2 = ['walker_run+sac+visualize_crop',
             'walker_run+RAD+visualize_crop', 'walker_run+RAD+aug_when_act+visualize_crop',
@@ -172,12 +177,13 @@ prefix_6 = ['reacher_hard+DrQ_crop+visualize+deterministic',
 # plot_percentage(domain_2, prefix_2, title='original')
 
 # 2.27
-plot_percentage(domain_1, prefix_3, title='deterministic_aug_when_act_new')
-plot_percentage(domain_1, prefix_4, title='deterministic_different_aug_new')
-plot_percentage(domain_2, prefix_5, title='deterministic_aug_when_act_new')
-plot_percentage(domain_3, prefix_6, title='deterministic_aug_when_act_new')
-
-plot_percentage(domain_1, prefix_7, title='deterministic_visualize_action', action=True)
+# plot_percentage(domain_1, prefix_3, title='deterministic_aug_when_act_new')
+# plot_percentage(domain_1, prefix_4, title='deterministic_different_aug_new')
+# plot_percentage(domain_2, prefix_5, title='deterministic_aug_when_act_new')
+# plot_percentage(domain_3, prefix_6, title='deterministic_aug_when_act_new')
+#
+# plot_percentage(domain_1, prefix_7, title='deterministic_visualize_action', action=True)
+plot_percentage(domain_1, prefix_8, title='deterministic_tangent', action=True)
 
 
 

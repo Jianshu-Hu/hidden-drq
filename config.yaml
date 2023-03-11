@@ -79,7 +79,7 @@ agent:
     add_actor_obs_aug_loss: ${add_actor_obs_aug_loss}
     update_beta: ${update_beta}
     avg_target: ${avg_target}
-    tangent_prop: ${tangent_prop}$
+    tangent_prop: ${tangent_prop}
 
 
 critic:

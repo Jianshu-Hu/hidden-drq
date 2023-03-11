@@ -317,6 +317,27 @@ class DRQAgent(object):
         # visualize the embedding
         if self.visualize:
             if step % 5000 == 0:
+                if self.tangent_prop:
+                    with torch.no_grad():
+                        dist_aug_1 = self.actor(next_obs_aug_1)
+                        next_action_aug_1 = dist_aug_1.rsample()
+                        log_prob_aug_1 = dist_aug_1.log_prob(next_action_aug_1).sum(-1, keepdim=True)
+                        target_Q1, target_Q2 = self.critic_target(next_obs_aug_1,
+                                                                  next_action_aug_1)
+                        target_V = torch.min(
+                            target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_1
+                        target_Q_aug_1 = reward + (not_done * self.discount * target_V)
+
+                        dist_aug_2 = self.actor(next_obs_aug_2)
+                        next_action_aug_2 = dist_aug_2.rsample()
+                        log_prob_aug_2 = dist_aug_2.log_prob(next_action_aug_2).sum(-1,
+                                                                                    keepdim=True)
+                        target_Q1, target_Q2 = self.critic_target(next_obs_aug_2,
+                                                                  next_action_aug_2)
+                        target_V = torch.min(
+                            target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_2
+                        target_Q_aug_2 = reward + (not_done * self.discount * target_V)
+
                 t_sne = manifold.TSNE(n_components=2, init='pca', random_state=self.seed)
                 with torch.no_grad():
                     X1 = self.critic.encoder(obs_aug_1).cpu().numpy()
@@ -335,31 +356,31 @@ class DRQAgent(object):
                          next_action=next_action_aug_1.cpu().numpy(), next_action_aug=next_action_aug_2.cpu().numpy())
 
         if self.tangent_prop:
+            with torch.no_grad():
+                # calculate the gradient with respect to the data aug parameter
+                tangent_vector = self.tangent_prop_regu.tangent_vector(obs)
             obs.requires_grad = True
             # get current Q estimates
             current_Q1, current_Q2 = self.critic(obs, action)
             critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
-
             logger.log('train_critic/loss', critic_loss, step)
 
             # add regularization for tangent prop
             # calculate the Jacobian matrix for non-linear model
-            current_Q1.backward(torch.ones_like(current_Q1), retain_graph=True)
-            jacobian1 = torch.clone(obs.grad)
-            obs.grad.zero_()
-            current_Q2.backward(torch.ones_like(current_Q2), retain_graph=True)
-            jacobian2 = torch.clone(obs.grad)
-            obs.grad.zero_()
-
-            # calculate the gradient with respect to the data aug parameter
-            tangent_vector = self.tangent_prop_regu.tangent_vector(obs)
+            # Q = torch.min(current_Q1, current_Q2)
+            jacobian1 = torch.autograd.grad(outputs=current_Q1, inputs=obs,
+                                           grad_outputs=torch.ones(current_Q1.size(), device=self.device),
+                                           retain_graph=True, create_graph=True)[0]
+            jacobian2 = torch.autograd.grad(outputs=current_Q2, inputs=obs,
+                                           grad_outputs=torch.ones(current_Q2.size(), device=self.device),
+                                           retain_graph=True, create_graph=True)[0]
 
             tan_loss1 = torch.mean(torch.mean(
                 torch.linalg.matrix_norm(jacobian1 * tangent_vector), dim=-1), dim=-1)
             tan_loss2 = torch.mean(torch.mean(
                 torch.linalg.matrix_norm(jacobian2 * tangent_vector), dim=-1), dim=-1)
 
-            tangent_prop_loss = 0.1*(tan_loss1+tan_loss2)
+            tangent_prop_loss = tan_loss1+tan_loss2
             critic_loss += tangent_prop_loss
 
             logger.log('train_critic/tangent_prop_loss', tangent_prop_loss, step)
@@ -382,11 +403,14 @@ class DRQAgent(object):
                 current_Q1, current_Q2 = self.critic(obs_aug_1, action)
                 critic_loss = F.mse_loss(current_Q1, target_Q_aug_1) + F.mse_loss(current_Q2, target_Q_aug_1)
 
+            logger.log('train_critic/loss', critic_loss, step)
 
         # Optimize the critic
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
+        if self.tangent_prop:
+            obs.grad.zero_()
 
         self.critic.log(logger, step)
 

@@ -92,11 +92,13 @@ folders_30 = ['rad+visualize_action+deterministic',
               'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
               'drq+critic_loss_div_2+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+actor_two+visualize+deterministic',
-              'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic']
+              'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic',
+              'drq+not_average_target+critic_loss_div_2+05_kl_loss+visualize+deterministic']
 folders_32 = ['rad+visualize_action+deterministic',
               'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
               'tangent_prop+visualize+deterministic',
-              'tangent_prop_xy_shift+visualize+deterministic']
+              'tangent_prop_xy_shift+visualize+deterministic',
+              'tangent_prop_variance_01_weight']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',

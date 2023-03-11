@@ -137,10 +137,10 @@ class TangentProp():
 
             kernal_size = self.image_pad*2+1
             channel = pad_obs.shape[1]
-            filter = torch.ones((channel, channel, kernal_size, kernal_size),
-                                device=self.device).float() / (kernal_size**2*channel)
-            expected_trans_obs = torch.nn.functional.conv2d(input=pad_obs, weight=filter, stride=1)
-            expected_squa_trans_obs = torch.nn.functional.conv2d(input=torch.pow(pad_obs, 2), weight=filter, stride=1)
+            filter = torch.ones((channel, 1, kernal_size, kernal_size), device=self.device).float() / (kernal_size**2)
+            expected_trans_obs = torch.nn.functional.conv2d(input=pad_obs, weight=filter, stride=1, groups=channel)
+            expected_squa_trans_obs = torch.nn.functional.conv2d(input=torch.pow(pad_obs, 2),
+                                                                 weight=filter, stride=1, groups=channel)
             variance_trans_obs = expected_squa_trans_obs - torch.pow(expected_trans_obs, 2)
         else:
             variance_trans_obs = None
