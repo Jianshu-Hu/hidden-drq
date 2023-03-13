@@ -88,17 +88,15 @@ folders_28 = ['drq+visualize+deterministic', 'drq+kl_loss+crop+visualize+determi
               'drq+beta_kl_loss+crop+visualize+deterministic',
               'drq+alpha_08_crop+kl_loss+visualize+deterministic']
 
-folders_30 = ['rad+visualize_action+deterministic',
+folders_30 = ['rad+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
               'drq+critic_loss_div_2+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+actor_two+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+05_kl_loss+visualize+deterministic']
-folders_32 = ['rad+visualize_action+deterministic',
+folders_32 = ['rad+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
-              'tangent_prop+visualize+deterministic',
-              'tangent_prop_xy_shift+visualize+deterministic',
-              'tangent_prop_variance_01_weight']
+              'tangent_prop_variance']
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -148,7 +146,8 @@ folders_29 = ['drq+visualize+deterministic', 'drq+kl_loss+crop+visualize+determi
 folders_31 = ['rad+visualize+deterministic', 'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
               'drq+critic_loss_div_2+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+actor_two+visualize+deterministic',
-              'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic']
+              'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic',
+              'drq+not_average_target+critic_loss_div_2+05_kl_loss+visualize+deterministic']
 
 prefix_8 = 'saved_runs/ballincup_catch/'
 folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',

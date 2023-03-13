@@ -286,10 +286,13 @@ class DRQAgent(object):
                       next_obs_aug_1, next_obs_aug_2, not_done, logger, step):
         with torch.no_grad():
             if self.tangent_prop:
-                dist = self.actor(next_obs)
+                # calculate the expected transformed image and tangent vector
+                expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs)
+                expected_trans_next_obs = self.tangent_prop_regu.expected_transform_obs(self.next_obs)
+                dist = self.actor(expected_trans_next_obs)
                 next_action = dist.rsample()
                 log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
-                target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
+                target_Q1, target_Q2 = self.critic_target(expected_trans_next_obs, next_action)
                 target_V = torch.min(target_Q1,
                                      target_Q2) - self.alpha.detach() * log_prob
                 target_Q = reward + (not_done * self.discount * target_V)
@@ -356,31 +359,29 @@ class DRQAgent(object):
                          next_action=next_action_aug_1.cpu().numpy(), next_action_aug=next_action_aug_2.cpu().numpy())
 
         if self.tangent_prop:
-            with torch.no_grad():
-                # calculate the gradient with respect to the data aug parameter
-                tangent_vector = self.tangent_prop_regu.tangent_vector(obs)
-            obs.requires_grad = True
-            # get current Q estimates
-            current_Q1, current_Q2 = self.critic(obs, action)
+            # critic loss
+            current_Q1, current_Q2 = self.critic(expected_trans_obs, action)
             critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
             logger.log('train_critic/loss', critic_loss, step)
 
             # add regularization for tangent prop
+            tangent_vector = torch.pow(variance_trans_obs, 1/2)
             # calculate the Jacobian matrix for non-linear model
-            # Q = torch.min(current_Q1, current_Q2)
-            jacobian1 = torch.autograd.grad(outputs=current_Q1, inputs=obs,
-                                           grad_outputs=torch.ones(current_Q1.size(), device=self.device),
+            obs.requires_grad = True
+            Q1, Q2 = self.critic(obs, action)
+            Q = torch.min(Q1, Q2)
+            jacobian = torch.autograd.grad(outputs=Q, inputs=obs,
+                                           grad_outputs=torch.ones(Q.size(), device=self.device),
                                            retain_graph=True, create_graph=True)[0]
-            jacobian2 = torch.autograd.grad(outputs=current_Q2, inputs=obs,
-                                           grad_outputs=torch.ones(current_Q2.size(), device=self.device),
-                                           retain_graph=True, create_graph=True)[0]
+            # jacobian2 = torch.autograd.grad(outputs=current_Q2, inputs=obs,
+            #                                grad_outputs=torch.ones(current_Q2.size(), device=self.device),
+            #                                retain_graph=True, create_graph=True)[0]
+            tan_loss = torch.mean(torch.sum(
+                torch.linalg.matrix_norm(jacobian * tangent_vector), dim=-1), dim=-1)
+            # tan_loss2 = torch.mean(torch.mean(
+            #     torch.linalg.matrix_norm(jacobian2 * tangent_vector), dim=-1), dim=-1)
 
-            tan_loss1 = torch.mean(torch.mean(
-                torch.linalg.matrix_norm(jacobian1 * tangent_vector), dim=-1), dim=-1)
-            tan_loss2 = torch.mean(torch.mean(
-                torch.linalg.matrix_norm(jacobian2 * tangent_vector), dim=-1), dim=-1)
-
-            tangent_prop_loss = tan_loss1+tan_loss2
+            tangent_prop_loss = tan_loss
             critic_loss += tangent_prop_loss
 
             logger.log('train_critic/tangent_prop_loss', tangent_prop_loss, step)

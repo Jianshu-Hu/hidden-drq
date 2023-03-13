@@ -145,10 +145,8 @@ prefix_4 = ['cheetah_run+DrQ_crop+visualize+deterministic',
 prefix_7 = ['cheetah_run+RAD_crop+visualize_action+deterministic',
             'cheetah_run+DrQ_crop+add_kl_loss+visualize+determinitic']
 
-prefix_8 = ['cheetah_run+RAD_crop+visualize_action+deterministic',
-            'cheetah_run+crop+SAC+tangent_prop+visualize+determinitic',
-            'cheetah_run+crop+SAC+tangent_prop_include_xy_shift+visualize+determinitic',
-            'cheetah_run+crop+SAC+weight_01_tangent_prop_variance+visualize+determinitic']
+prefix_8 = ['cheetah_run+RAD_crop+visualize+deterministic',
+            'cheetah_run+crop+SAC+tangent_prop_variance+visualize+determinitic']
 
 domain_2 = 'walker_run_new'
 prefix_2 = ['walker_run+sac+visualize_crop',

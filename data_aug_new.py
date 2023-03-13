@@ -116,35 +116,46 @@ class TangentProp():
         self.image_pad = image_pad
         self.device = device
 
-    def tangent_vector(self, obs):
-        # tan_vec_variance = torch.zeros_like(obs)
-        # pad = nn.Sequential(
-        #     torch.nn.ReplicationPad2d(1))
-        # # horizontal shift 1 pixel
-        # obs_aug = F.crop(pad(obs), top=1, left=2, height=obs.shape[-1], width=obs.shape[-1])
-        # tan_vector_1 = obs_aug - obs
-        # tan_vec_variance += torch.pow(tan_vector_1, 2)
-        # # vertical shift 1 pixel
-        # obs_aug = F.crop(pad(obs), top=2, left=1, height=obs.shape[-1], width=obs.shape[-1])
-        # tan_vector_2 = obs_aug - obs
-        # tan_vec_variance += torch.pow(tan_vector_2, 2)
-        # tan_vec = torch.pow(tan_vec_variance, 0.5)
+        self.pad = nn.Sequential(torch.nn.ReplicationPad2d(self.image_pad))
+        self.kernel_size = self.image_pad*2+1
 
+    def expected_transform_obs(self, obs):
         if self.data_aug == 1:
-            pad = nn.Sequential(
-                torch.nn.ReplicationPad2d(self.image_pad))
-            pad_obs = pad(obs)
-
-            kernal_size = self.image_pad*2+1
+            pad_obs = self.pad(obs)
             channel = pad_obs.shape[1]
-            filter = torch.ones((channel, 1, kernal_size, kernal_size), device=self.device).float() / (kernal_size**2)
+            filter = torch.ones((channel, 1, self.kernel_size, self.kernel_size),
+                                device=self.device).float() / (self.kernel_size ** 2)
+            expected_trans_obs = torch.nn.functional.conv2d(input=pad_obs, weight=filter, stride=1, groups=channel)
+        else:
+            expected_trans_obs = None
+
+        return expected_trans_obs
+
+    def moments_transformed_obs(self, obs):
+        if self.data_aug == 1:
+            pad_obs = self.pad(obs)
+            channel = pad_obs.shape[1]
+            filter = torch.ones((channel, 1, self.kernel_size, self.kernel_size),
+                                device=self.device).float() / (self.kernel_size**2)
             expected_trans_obs = torch.nn.functional.conv2d(input=pad_obs, weight=filter, stride=1, groups=channel)
             expected_squa_trans_obs = torch.nn.functional.conv2d(input=torch.pow(pad_obs, 2),
                                                                  weight=filter, stride=1, groups=channel)
             variance_trans_obs = expected_squa_trans_obs - torch.pow(expected_trans_obs, 2)
+            # sum = (torch.where(variance_trans_obs < 0, 1, 0)).sum().sum().sum()
+            # if sum > 0:
+            #     print('wrong variance')
+            #     idx_list = torch.nonzero(variance_trans_obs < 0)
+            #     for num in range(len(idx_list)):
+            #         idx = idx_list[num].tolist()
+            #         print('index of value smaller than 0: ')
+            #         print(idx)
+            #         print('index of value smaller than 0: ')
+            #         print(variance_trans_obs[idx[0], idx[1], idx[2], idx[3]])
+            variance_trans_obs = torch.abs(variance_trans_obs)
         else:
+            expected_trans_obs = None
             variance_trans_obs = None
-        return torch.pow(variance_trans_obs, 0.5)
+        return expected_trans_obs, variance_trans_obs
 
 
 
