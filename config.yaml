@@ -22,14 +22,12 @@ RAD: false
 avg_target: true
 tangent_prop: false
 
-aug_when_act: false
 add_kl_loss: false
+init_beta: 0.5
 update_beta: false
 add_actor_obs_aug_loss: false
 
 visualize: false
-
-black_background: false
 # eval
 eval_frequency: 5000
 num_eval_episodes: 10
@@ -43,9 +41,9 @@ image_size: 84
 image_pad: 4
 frame_stack: 3
 # global params
-lr: 1e-3
+lr: 1e-4
 # IMPORTANT: please use a batch size of 512 to reproduce the results in the paper. Hovewer, with a smaller batch size it still works well.
-batch_size: 128
+batch_size: 256
 
 # agent configuration
 agent:
@@ -69,13 +67,13 @@ agent:
     image_pad: ${image_pad}
     data_aug: ${data_aug}
     RAD: ${RAD}
-    aug_when_act: ${aug_when_act}
     degrees: ${degrees}
     visualize: ${visualize}
     tag: ${tag}
     seed: ${seed}
     dist_alpha: ${dist_alpha}
     add_kl_loss: ${add_kl_loss}
+    init_beta: ${init_beta}
     add_actor_obs_aug_loss: ${add_actor_obs_aug_loss}
     update_beta: ${update_beta}
     avg_target: ${avg_target}

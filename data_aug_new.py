@@ -111,9 +111,9 @@ def aug(data_aug, image_pad, obs_shape, degrees, dist_alpha):
 
 
 class TangentProp():
-    def __init__(self, data_aug, image_pad, device):
+    def __init__(self, data_aug, device):
         self.data_aug = data_aug
-        self.image_pad = image_pad
+        self.image_pad = 1
         self.device = device
 
         self.pad = nn.Sequential(torch.nn.ReplicationPad2d(self.image_pad))
@@ -141,21 +141,33 @@ class TangentProp():
             expected_squa_trans_obs = torch.nn.functional.conv2d(input=torch.pow(pad_obs, 2),
                                                                  weight=filter, stride=1, groups=channel)
             variance_trans_obs = expected_squa_trans_obs - torch.pow(expected_trans_obs, 2)
-            # sum = (torch.where(variance_trans_obs < 0, 1, 0)).sum().sum().sum()
-            # if sum > 0:
-            #     print('wrong variance')
-            #     idx_list = torch.nonzero(variance_trans_obs < 0)
-            #     for num in range(len(idx_list)):
-            #         idx = idx_list[num].tolist()
-            #         print('index of value smaller than 0: ')
-            #         print(idx)
-            #         print('index of value smaller than 0: ')
-            #         print(variance_trans_obs[idx[0], idx[1], idx[2], idx[3]])
-            variance_trans_obs = torch.abs(variance_trans_obs)
         else:
             expected_trans_obs = None
             variance_trans_obs = None
         return expected_trans_obs, variance_trans_obs
+
+    def tangent_vector(self, obs):
+        if self.data_aug == 1:
+            pad_obs = self.pad(obs)
+            tan_vec_whole = torch.zeros_like(obs)
+            # horizontal shift 1 pixel
+            obs_aug = F.crop(pad_obs, top=1, left=2, height=obs.shape[-1], width=obs.shape[-1])
+            tan_vector_1 = obs_aug - obs
+            tan_vec_whole += torch.pow(tan_vector_1, 2)
+            obs_aug = F.crop(pad_obs, top=1, left=0, height=obs.shape[-1], width=obs.shape[-1])
+            tan_vector_2 = obs_aug - obs
+            tan_vec_whole += torch.pow(tan_vector_2, 2)
+            # vertical shift 1 pixel
+            obs_aug = F.crop(pad_obs, top=2, left=1, height=obs.shape[-1], width=obs.shape[-1])
+            tan_vector_3 = obs_aug - obs
+            tan_vec_whole += torch.pow(tan_vector_3, 2)
+            obs_aug = F.crop(pad_obs, top=0, left=1, height=obs.shape[-1], width=obs.shape[-1])
+            tan_vector_4 = obs_aug - obs
+            tan_vec_whole += torch.pow(tan_vector_4, 2)
+            tan_vec = torch.pow(tan_vec_whole, 0.5)
+        else:
+            tan_vec = None
+        return tan_vec
 
 
 

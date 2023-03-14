@@ -96,7 +96,13 @@ folders_30 = ['rad+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+05_kl_loss+visualize+deterministic']
 folders_32 = ['rad+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+visualize+deterministic',
-              'tangent_prop_variance']
+              'sac+tangent_prop_xy_2shift+visualize+deterministic',
+              'sac+tangent_prop_xy_4shift+visualize+deterministic',
+              'sac+tangent_prop_xy_8shift+visualize+deterministic',
+              'rad+tangent_prop_xy_2shift+visualize+deterministic',
+              'rad+tangent_prop_xy_4shift+visualize+deterministic',
+              'rad+tangent_prop_xy_8shift+visualize+deterministic']
+
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',

@@ -190,8 +190,8 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size, image_pad, data_aug, RAD, aug_when_act,
-                 degrees, visualize, tag, seed, dist_alpha, add_kl_loss, add_actor_obs_aug_loss,
+                 critic_target_update_frequency, batch_size, image_pad, data_aug, RAD,
+                 degrees, visualize, tag, seed, dist_alpha, add_kl_loss, init_beta, add_actor_obs_aug_loss,
                  update_beta, avg_target, tangent_prop):
         self.action_range = action_range
         self.device = device
@@ -219,8 +219,7 @@ class DRQAgent(object):
 
         # optimizers
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
-        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(),
-                                                 lr=lr)
+        self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=lr)
 
         self.train()
@@ -228,11 +227,10 @@ class DRQAgent(object):
 
         # data aug
         self.data_aug = data_aug
-        self.aug_when_act = aug_when_act
 
         self.image_pad = image_pad
         self.aug = new_aug.aug(data_aug, image_pad, obs_shape, degrees, dist_alpha)
-        self.tangent_prop_regu = new_aug.TangentProp(data_aug, image_pad, device)
+        self.tangent_prop_regu = new_aug.TangentProp(data_aug, device)
 
         self.mse_loss = nn.MSELoss()
         self.RAD = RAD
@@ -244,9 +242,9 @@ class DRQAgent(object):
         self.avg_target = avg_target
         self.tangent_prop = tangent_prop
         if self.add_kl_loss:
-            init_beta = 0.5
+            self.init_beta = init_beta
             target_KL = 0.02
-            self.log_beta = torch.tensor([np.log(init_beta)]).to(self.device)
+            self.log_beta = torch.tensor([np.log(self.init_beta)]).to(self.device)
             self.log_beta.requires_grad = True
             # set target KL divergence
             self.target_KL = target_KL
@@ -270,77 +268,37 @@ class DRQAgent(object):
 
         obs = torch.FloatTensor(obs).to(self.device)
         obs = obs.unsqueeze(0)
-        if self.aug_when_act:
-            obs_aug = self.aug(obs)
-            dist = self.actor(obs_aug)
-            action = dist.sample() if sample else dist.mean
-            action = action.clamp(*self.action_range)
-        else:
-            dist = self.actor(obs)
-            action = dist.sample() if sample else dist.mean
-            action = action.clamp(*self.action_range)
+        dist = self.actor(obs)
+        action = dist.sample() if sample else dist.mean
+        action = action.clamp(*self.action_range)
         assert action.ndim == 2 and action.shape[0] == 1
         return utils.to_np(action[0])
 
     def update_critic(self, obs, obs_aug_1, obs_aug_2, action, reward, next_obs,
                       next_obs_aug_1, next_obs_aug_2, not_done, logger, step):
         with torch.no_grad():
-            if self.tangent_prop:
-                # calculate the expected transformed image and tangent vector
-                expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs)
-                expected_trans_next_obs = self.tangent_prop_regu.expected_transform_obs(self.next_obs)
-                dist = self.actor(expected_trans_next_obs)
-                next_action = dist.rsample()
-                log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
-                target_Q1, target_Q2 = self.critic_target(expected_trans_next_obs, next_action)
-                target_V = torch.min(target_Q1,
-                                     target_Q2) - self.alpha.detach() * log_prob
-                target_Q = reward + (not_done * self.discount * target_V)
+            dist_aug_1 = self.actor(next_obs_aug_1)
+            next_action_aug_1 = dist_aug_1.rsample()
+            log_prob_aug_1 = dist_aug_1.log_prob(next_action_aug_1).sum(-1, keepdim=True)
+            target_Q1, target_Q2 = self.critic_target(next_obs_aug_1,
+                                                      next_action_aug_1)
+            target_V = torch.min(
+                target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_1
+            target_Q_aug_1 = reward + (not_done * self.discount * target_V)
 
-            else:
-                dist_aug_1 = self.actor(next_obs_aug_1)
-                next_action_aug_1 = dist_aug_1.rsample()
-                log_prob_aug_1 = dist_aug_1.log_prob(next_action_aug_1).sum(-1, keepdim=True)
-                target_Q1, target_Q2 = self.critic_target(next_obs_aug_1,
-                                                          next_action_aug_1)
-                target_V = torch.min(
-                    target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_1
-                target_Q_aug_1 = reward + (not_done * self.discount * target_V)
-
-                dist_aug_2 = self.actor(next_obs_aug_2)
-                next_action_aug_2 = dist_aug_2.rsample()
-                log_prob_aug_2 = dist_aug_2.log_prob(next_action_aug_2).sum(-1,
-                                                                      keepdim=True)
-                target_Q1, target_Q2 = self.critic_target(next_obs_aug_2,
-                                                          next_action_aug_2)
-                target_V = torch.min(
-                    target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_2
-                target_Q_aug_2 = reward + (not_done * self.discount * target_V)
+            dist_aug_2 = self.actor(next_obs_aug_2)
+            next_action_aug_2 = dist_aug_2.rsample()
+            log_prob_aug_2 = dist_aug_2.log_prob(next_action_aug_2).sum(-1,
+                                                                  keepdim=True)
+            target_Q1, target_Q2 = self.critic_target(next_obs_aug_2,
+                                                      next_action_aug_2)
+            target_V = torch.min(
+                target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_2
+            target_Q_aug_2 = reward + (not_done * self.discount * target_V)
 
         # visualize the embedding
         if self.visualize:
             if step % 5000 == 0:
-                if self.tangent_prop:
-                    with torch.no_grad():
-                        dist_aug_1 = self.actor(next_obs_aug_1)
-                        next_action_aug_1 = dist_aug_1.rsample()
-                        log_prob_aug_1 = dist_aug_1.log_prob(next_action_aug_1).sum(-1, keepdim=True)
-                        target_Q1, target_Q2 = self.critic_target(next_obs_aug_1,
-                                                                  next_action_aug_1)
-                        target_V = torch.min(
-                            target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_1
-                        target_Q_aug_1 = reward + (not_done * self.discount * target_V)
-
-                        dist_aug_2 = self.actor(next_obs_aug_2)
-                        next_action_aug_2 = dist_aug_2.rsample()
-                        log_prob_aug_2 = dist_aug_2.log_prob(next_action_aug_2).sum(-1,
-                                                                                    keepdim=True)
-                        target_Q1, target_Q2 = self.critic_target(next_obs_aug_2,
-                                                                  next_action_aug_2)
-                        target_V = torch.min(
-                            target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug_2
-                        target_Q_aug_2 = reward + (not_done * self.discount * target_V)
-
                 t_sne = manifold.TSNE(n_components=2, init='pca', random_state=self.seed)
                 with torch.no_grad():
                     X1 = self.critic.encoder(obs_aug_1).cpu().numpy()
@@ -359,29 +317,40 @@ class DRQAgent(object):
                          next_action=next_action_aug_1.cpu().numpy(), next_action_aug=next_action_aug_2.cpu().numpy())
 
         if self.tangent_prop:
+            with torch.no_grad():
+                # calculate the expected transformed image and tangent vector
+                expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_1)
+                tangent_vector1 = torch.pow(torch.abs(variance_trans_obs), 0.5)
+                expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_2)
+                tangent_vector2 = torch.pow(torch.abs(variance_trans_obs), 0.5)
+                # tangent_vector = self.tangent_prop_regu.tangent_vector(obs)
+            obs_aug_1.requires_grad = True
+            obs_aug_2.requires_grad = True
             # critic loss
-            current_Q1, current_Q2 = self.critic(expected_trans_obs, action)
-            critic_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+            target_Q = (target_Q_aug_1 + target_Q_aug_2) / 2
+            Q1_aug_1, Q2_aug_1 = self.critic(obs_aug_1, action)
+            Q1_aug_2, Q2_aug_2 = self.critic(obs_aug_2, action)
+            critic_loss = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
+            critic_loss += F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
+            critic_loss = critic_loss / 2
             logger.log('train_critic/loss', critic_loss, step)
 
             # add regularization for tangent prop
-            tangent_vector = torch.pow(variance_trans_obs, 1/2)
             # calculate the Jacobian matrix for non-linear model
-            obs.requires_grad = True
-            Q1, Q2 = self.critic(obs, action)
-            Q = torch.min(Q1, Q2)
-            jacobian = torch.autograd.grad(outputs=Q, inputs=obs,
-                                           grad_outputs=torch.ones(Q.size(), device=self.device),
+            Q1 = torch.min(Q1_aug_1, Q2_aug_1)
+            jacobian1 = torch.autograd.grad(outputs=Q1, inputs=obs_aug_1,
+                                           grad_outputs=torch.ones(Q1.size(), device=self.device),
                                            retain_graph=True, create_graph=True)[0]
-            # jacobian2 = torch.autograd.grad(outputs=current_Q2, inputs=obs,
-            #                                grad_outputs=torch.ones(current_Q2.size(), device=self.device),
-            #                                retain_graph=True, create_graph=True)[0]
-            tan_loss = torch.mean(torch.sum(
-                torch.linalg.matrix_norm(jacobian * tangent_vector), dim=-1), dim=-1)
-            # tan_loss2 = torch.mean(torch.mean(
-            #     torch.linalg.matrix_norm(jacobian2 * tangent_vector), dim=-1), dim=-1)
+            Q2 = torch.min(Q1_aug_2, Q2_aug_2)
+            jacobian2 = torch.autograd.grad(outputs=Q2, inputs=obs_aug_2,
+                                           grad_outputs=torch.ones(Q2.size(), device=self.device),
+                                           retain_graph=True, create_graph=True)[0]
+            tan_loss1 = torch.mean(torch.sum(torch.pow(
+                torch.linalg.matrix_norm(jacobian1 * tangent_vector1), 2), dim=-1), dim=-1)
+            tan_loss2 = torch.mean(torch.mean(torch.pow(
+                torch.linalg.matrix_norm(jacobian2 * tangent_vector2), 2), dim=-1), dim=-1)
 
-            tangent_prop_loss = tan_loss
+            tangent_prop_loss = tan_loss1+tan_loss2
             critic_loss += tangent_prop_loss
 
             logger.log('train_critic/tangent_prop_loss', tangent_prop_loss, step)
