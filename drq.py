@@ -380,7 +380,8 @@ class DRQAgent(object):
         critic_loss.backward()
         self.critic_optimizer.step()
         if self.tangent_prop:
-            obs.grad.zero_()
+            obs_aug_1.grad.zero_()
+            obs_aug_2.grad.zero_()
 
         self.critic.log(logger, step)
 
