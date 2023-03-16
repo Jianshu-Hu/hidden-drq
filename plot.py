@@ -103,6 +103,12 @@ folders_32 = ['rad+visualize+deterministic',
               'rad+tangent_prop_xy_4shift+visualize+deterministic',
               'rad+tangent_prop_xy_8shift+visualize+deterministic']
 
+folders_33 = ['rad', 'drq+not_avg_target', 'drq+avg_target']
+folders_34 = ['drq+avg_target', 'drq+avg_target+critic_tangent_prop', 'drq+avg_target+05_critic_tangent_prop']
+folders_35 = ['drq+avg_target', 'drq+avg_target+05_kl']
+folders_36 = ['drq+avg_target', 'drq+avg_target+08_beta_dist']
+folders_41 = ['drq+avg_target', 'drq+avg_target+08_beta_dist+05_critic_tangent+05_kl']
+
 
 prefix_3 = 'saved_runs/reacher_hard/'
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -154,6 +160,10 @@ folders_31 = ['rad+visualize+deterministic', 'drq+not_average_target+critic_loss
               'drq+not_average_target+critic_loss_div_2+actor_two+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+05_kl_loss+visualize+deterministic']
+folders_37 = ['rad', 'drq+not_avg_target']
+folders_38 = ['drq+avg_target', 'drq+avg_target+critic_tangent_prop', 'drq+avg_target+05_critic_tangent_prop']
+folders_39 = ['drq+avg_target', 'drq+avg_target+05_kl']
+folders_40 = ['drq+avg_target', 'drq+avg_target+08_beta_dist']
 
 prefix_8 = 'saved_runs/ballincup_catch/'
 folders_6 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
@@ -284,10 +294,18 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # plot_several_folders(prefix=prefix_7, folders=folders_29, title='walker_run_deterministic_kl')
 
 # 3.13
-plot_several_folders(prefix=prefix_2_1, folders=folders_30, title='cheetah_run_deterministic_more_samples')
-plot_several_folders(prefix=prefix_7_1, folders=folders_31, title='walker_run_deterministic_more_samples')
+# plot_several_folders(prefix=prefix_2_1, folders=folders_30, title='cheetah_run_deterministic_more_samples')
+# plot_several_folders(prefix=prefix_7_1, folders=folders_31, title='walker_run_deterministic_more_samples')
+# plot_several_folders(prefix=prefix_2_1, folders=folders_32, title='cheetah_run_deterministic_tangent')
 
-plot_several_folders(prefix=prefix_2_1, folders=folders_32, title='cheetah_run_deterministic_tangent')
+# 3.21
+plot_several_folders(prefix=prefix_2, folders=folders_33, title='cheetah_run_more_samples')
+plot_several_folders(prefix=prefix_2, folders=folders_34, title='cheetah_run_critic_tangent')
+plot_several_folders(prefix=prefix_2, folders=folders_35, title='cheetah_run_actor_kl')
+plot_several_folders(prefix=prefix_2, folders=folders_36, title='cheetah_run_beta_dist')
+plot_several_folders(prefix=prefix_2, folders=folders_41, title='cheetah_run_all')
+
+plot_several_folders(prefix=prefix_7, folders=folders_37, title='walker_run_more_samples')
 
 # import torch
 # alpha = 0.8

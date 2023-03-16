@@ -16,11 +16,12 @@ seed: 1
 # new
 data_aug: 1
 degrees: 30.0
-dist_alpha: 0.6
+dist_alpha: 0.8
 
 RAD: false
 avg_target: true
-tangent_prop: false
+tan_prop: false
+tan_prop_weight: 0.5
 
 add_kl_loss: false
 init_beta: 0.5
@@ -77,7 +78,8 @@ agent:
     add_actor_obs_aug_loss: ${add_actor_obs_aug_loss}
     update_beta: ${update_beta}
     avg_target: ${avg_target}
-    tangent_prop: ${tangent_prop}
+    critic_tangent_prop: ${tan_prop}
+    critic_tangent_prop_weight: ${tan_prop_weight}
 
 
 critic:

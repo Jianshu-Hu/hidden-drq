@@ -8,7 +8,7 @@ import math
 def compare_pairs(file, action=False):
     data = np.load(file)
     Y = data['Y']
-    batch_size = 512
+    batch_size = 256
     # calculate percentage of close samples
     distance = np.sqrt(np.sum((Y[:batch_size]-Y[batch_size:])**2, axis=-1))
     percentage = np.sum((distance < 2))/batch_size
@@ -113,8 +113,8 @@ def plot_percentage(domain, prefix_list, title, action=False):
 #                'DrQ_aug_when_act_cheetah_run_crop', 'DrQ+t_sne+rotation_30']
 # prefix_list_2 = ['sac_reacher_hard_rotation', 'RAD_reacher_hard_rotation', 'DrQ_reacher_hard_rotation',
 #                  'DrQ_aug_when_act_reacher_hard_rotation', 'DrQ+t_sne+crop']
-
-domain_1 = 'cheetah_run_new'
+domain_1 = 'cheetah_run'
+domain_1_1 = 'cheetah_run_new'
 prefix_1 = ['cheetah_run+sac+visualize_crop',
             'cheetah_run+RAD_crop+visualize_crop', 'cheetah_run+RAD_crop+aug_when_act+visualize_crop',
             'cheetah_run+DrQ_crop+visualize_crop', 'cheetah_run+DrQ_crop+aug_when_act+visualize_crop',
@@ -153,7 +153,14 @@ prefix_8 = ['cheetah_run+RAD_crop+visualize+deterministic',
             'cheetah_run+crop+RAD+tangent_prop_xy_all+visualize+determinitic',
             'cheetah_run+crop+RAD+tangent_prop_xy_8shift+visualize+determinitic']
 
-domain_2 = 'walker_run_new'
+prefix_9 = ['cheetah_run+crop+RAD', 'cheetah_run+crop+DrQ_not_avg_target',
+            'cheetah_run+crop+DrQ_avg_target']
+prefix_10 = ['cheetah_run+crop+DrQ_avg_target', 'cheetah_run+crop+DrQ_avg_target+05_critic_tangent_prop',
+             'cheetah_run+crop+DrQ_avg_target+critic_tangent_prop']
+prefix_11 = ['cheetah_run+crop+DrQ_avg_target', 'cheetah_run+crop+DrQ_avg_target+08_beta_dist']
+prefix_12 = ['cheetah_run+crop+DrQ_avg_target', 'cheetah_run+crop+DrQ_avg_target+05_kl']
+
+domain_2 = 'walker_run'
 prefix_2 = ['walker_run+sac+visualize_crop',
             'walker_run+RAD+visualize_crop', 'walker_run+RAD+aug_when_act+visualize_crop',
             'walker_run+DrQ+visualize_crop', 'walker_run+DrQ+aug_when_act+visualize_crop',
@@ -174,6 +181,7 @@ prefix_6 = ['reacher_hard+DrQ_crop+visualize+deterministic',
             'reacher_hard+DrQ_15_180_rotation+aug_when_act+visualize+deterministic',
             'reacher_hard+DrQ_alpha_06_rotation+aug_when_act+visualize+deterministic',
             'reacher_hard+DrQ_alpha_08_rotation+aug_when_act+visualize+deterministic']
+prefix_13 = ['walker_run+crop+RAD', 'walker_run+crop+DrQ_not_avg_target']
 
 # 2.20
 # plot_percentage(domain_1, prefix_1, title='original')
@@ -186,7 +194,16 @@ prefix_6 = ['reacher_hard+DrQ_crop+visualize+deterministic',
 # plot_percentage(domain_3, prefix_6, title='deterministic_aug_when_act_new')
 #
 # plot_percentage(domain_1, prefix_7, title='deterministic_visualize_action', action=True)
-plot_percentage(domain_1, prefix_8, title='deterministic_tangent', action=True)
+
+# 3.21
+# plot_percentage(domain_1_1, prefix_8, title='deterministic_tangent', action=True)
+plot_percentage(domain_1, prefix_9, title='critic_more_samples', action=True)
+plot_percentage(domain_1, prefix_10, title='critic_tangent_prop', action=True)
+plot_percentage(domain_1, prefix_11, title='beta_dist', action=True)
+plot_percentage(domain_1, prefix_12, title='actor', action=True)
+
+plot_percentage(domain_2, prefix_13, title='critic_more_samples', action=True)
+
 
 
 

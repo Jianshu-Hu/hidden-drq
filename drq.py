@@ -192,7 +192,7 @@ class DRQAgent(object):
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, image_pad, data_aug, RAD,
                  degrees, visualize, tag, seed, dist_alpha, add_kl_loss, init_beta, add_actor_obs_aug_loss,
-                 update_beta, avg_target, tangent_prop):
+                 update_beta, avg_target, critic_tangent_prop, critic_tangent_prop_weight):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -240,7 +240,8 @@ class DRQAgent(object):
         self.add_kl_loss = add_kl_loss
         self.update_beta = update_beta
         self.avg_target = avg_target
-        self.tangent_prop = tangent_prop
+        self.critic_tangent_prop = critic_tangent_prop
+        self.critic_tangent_prop_weight = critic_tangent_prop_weight
         if self.add_kl_loss:
             self.init_beta = init_beta
             target_KL = 0.02
@@ -305,6 +306,7 @@ class DRQAgent(object):
                     X2 = self.critic.encoder(obs_aug_2).cpu().numpy()
 
                 Y = t_sne.fit_transform(np.vstack((X1, X2)))
+                KL = torch.mean(kl_divergence(dist_aug_1, dist_aug_2))
                 # save the projected embedding
                 prefix = '/bigdata/users/jhu/hidden-drq/outputs/'
                 path = prefix+self.tag
@@ -314,9 +316,10 @@ class DRQAgent(object):
                     os.mkdir(path + '/seed_' + str(self.seed))
                 np.savez(path + '/seed_' + str(self.seed) + '/tsne-' + str(step) + '.npz',
                          target_Q=target_Q_aug_1.cpu().numpy(), target_Q_aug=target_Q_aug_2.cpu().numpy(), Y=Y,
-                         next_action=next_action_aug_1.cpu().numpy(), next_action_aug=next_action_aug_2.cpu().numpy())
+                         next_action=next_action_aug_1.cpu().numpy(), next_action_aug=next_action_aug_2.cpu().numpy(),
+                         KL=KL.cpu().numpy())
 
-        if self.tangent_prop:
+        if self.critic_tangent_prop:
             with torch.no_grad():
                 # calculate the expected transformed image and tangent vector
                 expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_1)
@@ -351,7 +354,7 @@ class DRQAgent(object):
                 torch.linalg.matrix_norm(jacobian2 * tangent_vector2), 2), dim=-1), dim=-1)
 
             tangent_prop_loss = tan_loss1+tan_loss2
-            critic_loss += tangent_prop_loss
+            critic_loss += self.critic_tangent_prop_weight*tangent_prop_loss
 
             logger.log('train_critic/tangent_prop_loss', tangent_prop_loss, step)
         else:
@@ -379,7 +382,7 @@ class DRQAgent(object):
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
-        if self.tangent_prop:
+        if self.critic_tangent_prop:
             obs_aug_1.grad.zero_()
             obs_aug_2.grad.zero_()
 
