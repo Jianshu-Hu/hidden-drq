@@ -26,6 +26,7 @@ tan_prop_weight: 0.5
 add_kl_loss: false
 init_beta: 0.5
 update_beta: false
+target_kl: 0.02
 add_actor_obs_aug_loss: false
 
 visualize: false
@@ -42,7 +43,7 @@ image_size: 84
 image_pad: 4
 frame_stack: 3
 # global params
-lr: 1e-4
+lr: 1e-3
 # IMPORTANT: please use a batch size of 512 to reproduce the results in the paper. Hovewer, with a smaller batch size it still works well.
 batch_size: 256
 
@@ -77,6 +78,7 @@ agent:
     init_beta: ${init_beta}
     add_actor_obs_aug_loss: ${add_actor_obs_aug_loss}
     update_beta: ${update_beta}
+    target_kl: ${target_kl}
     avg_target: ${avg_target}
     critic_tangent_prop: ${tan_prop}
     critic_tangent_prop_weight: ${tan_prop_weight}

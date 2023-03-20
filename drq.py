@@ -192,7 +192,7 @@ class DRQAgent(object):
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, image_pad, data_aug, RAD,
                  degrees, visualize, tag, seed, dist_alpha, add_kl_loss, init_beta, add_actor_obs_aug_loss,
-                 update_beta, avg_target, critic_tangent_prop, critic_tangent_prop_weight):
+                 update_beta, target_kl, avg_target, critic_tangent_prop, critic_tangent_prop_weight):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -244,11 +244,10 @@ class DRQAgent(object):
         self.critic_tangent_prop_weight = critic_tangent_prop_weight
         if self.add_kl_loss:
             self.init_beta = init_beta
-            target_KL = 0.02
             self.log_beta = torch.tensor([np.log(self.init_beta)]).to(self.device)
             self.log_beta.requires_grad = True
             # set target KL divergence
-            self.target_KL = target_KL
+            self.target_KL = target_kl
             self.log_beta_optimizer = torch.optim.Adam([self.log_beta], lr=lr)
         self.add_actor_obs_aug_loss = add_actor_obs_aug_loss
 
@@ -306,7 +305,12 @@ class DRQAgent(object):
                     X2 = self.critic.encoder(obs_aug_2).cpu().numpy()
 
                 Y = t_sne.fit_transform(np.vstack((X1, X2)))
-                KL = torch.mean(kl_divergence(dist_aug_1, dist_aug_2))
+                with torch.no_grad():
+                    mu_aug_1, std_aug_1 = self.actor.forward_mu_std(obs_aug_1)
+                    mu_aug_2, std_aug_2 = self.actor.forward_mu_std(obs_aug_2)
+                dist_1 = torch.distributions.Normal(torch.tanh(mu_aug_1), std_aug_1)
+                dist_2 = torch.distributions.Normal(torch.tanh(mu_aug_2), std_aug_2)
+                KL = torch.mean(kl_divergence(dist_1, dist_2))
                 # save the projected embedding
                 prefix = '/bigdata/users/jhu/hidden-drq/outputs/'
                 path = prefix+self.tag
@@ -430,8 +434,8 @@ class DRQAgent(object):
             with torch.no_grad():
                 mu, std = self.actor.forward_mu_std(obs_aug_1)
             mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_2, detach_encoder=True)
-            dist1 = utils.SquashedNormal(mu, std)
-            dist1_aug = utils.SquashedNormal(mu_aug, std_aug)
+            dist1 = torch.distributions.Normal(torch.tanh(mu), std)
+            dist1_aug = torch.distributions.Normal(torch.tanh(mu_aug), std_aug)
 
             KL = torch.mean(kl_divergence(dist1, dist1_aug))
             weighted_KL = self.beta.detach()*KL

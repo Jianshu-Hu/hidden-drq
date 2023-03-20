@@ -5,7 +5,7 @@ import os
 import math
 
 
-def compare_pairs(file, action=False):
+def compare_pairs(file, action=False, kl=False):
     data = np.load(file)
     Y = data['Y']
     batch_size = 256
@@ -20,9 +20,13 @@ def compare_pairs(file, action=False):
     if action:
         next_action = data['next_action']
         next_action_aug = data['next_action_aug']
-        action_diff = np.mean(np.mean(np.abs(next_action-next_action_aug), axis=-1))
+        action_diff = np.mean(np.mean(np.abs(next_action - next_action_aug), axis=-1))
         # action_diff = np.mean(np.sqrt(np.sum((next_action-next_action_aug)**2, axis=-1)))
-        return percentage, average_diff, action_diff
+        if kl:
+            kl_data = data['KL']
+            return percentage, average_diff, action_diff, kl_data
+        else:
+            return percentage, average_diff, action_diff
     else:
         return percentage, average_diff
 
@@ -55,16 +59,20 @@ def average_the_data(data):
     return mean, std
 
 
-def plot_percentage(domain, prefix_list, title, action=False):
+def plot_percentage(domain, prefix_list, title, action=False, kl=False):
     plt.rcParams["figure.figsize"] = (8, 8)
     if action:
-        fig, axs = plt.subplots(3, 1)
+        if kl:
+            fig, axs = plt.subplots(4, 1)
+        else:
+            fig, axs = plt.subplots(3, 1)
     else:
         fig, axs = plt.subplots(2, 1)
     for prefix in prefix_list:
         all_data_percentage = []
         all_data_diff = []
         all_data_action = []
+        all_data_kl = []
         num_runs = len(os.listdir('../saved_features/' + domain + '/' + prefix))
         for seed in range(1, 1+num_runs):
             folder = '../saved_features/' + domain + '/' + prefix + '/'+'seed_'+str(seed)
@@ -72,11 +80,18 @@ def plot_percentage(domain, prefix_list, title, action=False):
             percentage_list = []
             diff_list = []
             action_list = []
+            kl_list = []
             for num in range(len(files)):
                 if action:
-                    percentage, average_diff, action_diff = compare_pairs(
-                        folder + '/tsne-' + str(5000 * (num + 1)) + '.npz', action)
-                    action_list.append(action_diff)
+                    if kl:
+                        percentage, average_diff, action_diff, kl_diff = compare_pairs(
+                            folder + '/tsne-' + str(5000 * (num + 1)) + '.npz', action, kl)
+                        action_list.append(action_diff)
+                        kl_list.append(kl_diff)
+                    else:
+                        percentage, average_diff, action_diff = compare_pairs(
+                            folder + '/tsne-' + str(5000 * (num + 1)) + '.npz', action)
+                        action_list.append(action_diff)
                 else:
                     percentage, average_diff = compare_pairs(folder+'/tsne-'+str(5000*(num+1))+'.npz')
                 percentage_list.append(percentage)
@@ -85,10 +100,14 @@ def plot_percentage(domain, prefix_list, title, action=False):
             all_data_diff.append(diff_list)
             if action:
                 all_data_action.append(action_list)
+                if kl:
+                    all_data_kl.append(kl_list)
         percentage_mean, percentage_std = average_the_data(all_data_percentage)
         diff_mean, diff_std = average_the_data(all_data_diff)
         if action:
             action_mean, action_std = average_the_data(all_data_action)
+        if kl:
+            kl_mean, kl_std = average_the_data(all_data_kl)
         axs[0].fill_between(np.arange(1, percentage_mean.shape[0]+1)*10000,
                             percentage_mean - percentage_std/math.sqrt(num_runs),
                             percentage_mean + percentage_std/math.sqrt(num_runs), alpha=0.4)
@@ -105,6 +124,12 @@ def plot_percentage(domain, prefix_list, title, action=False):
                                 action_mean + action_std / math.sqrt(num_runs), alpha=0.4)
             axs[2].plot(np.arange(1, action_mean.shape[0] + 1) * 10000, action_mean)
             axs[2].set_title('mean action diff')
+        if kl:
+            axs[3].fill_between(np.arange(1, kl_mean.shape[0] + 1) * 10000,
+                                kl_mean - kl_std / math.sqrt(num_runs),
+                                kl_mean + kl_std / math.sqrt(num_runs), alpha=0.4)
+            axs[3].plot(np.arange(1, kl_mean.shape[0] + 1) * 10000, kl_mean)
+            axs[3].set_title('mean kl diff')
     fig.legend(fontsize=6)
     plt.savefig('../saved_features/saved_tsne_fig/'+domain+'_'+title+'.png')
 
@@ -158,7 +183,12 @@ prefix_9 = ['cheetah_run+crop+RAD', 'cheetah_run+crop+DrQ_not_avg_target',
 prefix_10 = ['cheetah_run+crop+DrQ_avg_target', 'cheetah_run+crop+DrQ_avg_target+05_critic_tangent_prop',
              'cheetah_run+crop+DrQ_avg_target+critic_tangent_prop']
 prefix_11 = ['cheetah_run+crop+DrQ_avg_target', 'cheetah_run+crop+DrQ_avg_target+08_beta_dist']
-prefix_12 = ['cheetah_run+crop+DrQ_avg_target', 'cheetah_run+crop+DrQ_avg_target+05_kl']
+prefix_12 = ['cheetah_run+crop+DrQ_avg_target+save_kl',
+             'cheetah_run+crop+DrQ_avg_target+actor_two_aug_loss+save_kl',
+             'cheetah_run+crop+DrQ_avg_target+05_kl+save_kl',
+             'cheetah_run+crop+DrQ_avg_target+lr_1e-3+save_kl',
+             'cheetah_run+crop+lr_1e-3+DrQ_avg_target+actor_two_aug_loss+save_kl',
+             'cheetah_run+crop+lr_1e-3+DrQ_avg_target+05_kl+save_kl']
 
 domain_2 = 'walker_run'
 prefix_2 = ['walker_run+sac+visualize_crop',
@@ -197,10 +227,11 @@ prefix_13 = ['walker_run+crop+RAD', 'walker_run+crop+DrQ_not_avg_target']
 
 # 3.21
 # plot_percentage(domain_1_1, prefix_8, title='deterministic_tangent', action=True)
+
 plot_percentage(domain_1, prefix_9, title='critic_more_samples', action=True)
 plot_percentage(domain_1, prefix_10, title='critic_tangent_prop', action=True)
 plot_percentage(domain_1, prefix_11, title='beta_dist', action=True)
-plot_percentage(domain_1, prefix_12, title='actor', action=True)
+plot_percentage(domain_1, prefix_12, title='actor', action=True, kl=True)
 
 plot_percentage(domain_2, prefix_13, title='critic_more_samples', action=True)
 

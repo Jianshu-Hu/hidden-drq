@@ -103,11 +103,16 @@ folders_32 = ['rad+visualize+deterministic',
               'rad+tangent_prop_xy_4shift+visualize+deterministic',
               'rad+tangent_prop_xy_8shift+visualize+deterministic']
 
-folders_33 = ['rad', 'drq+not_avg_target', 'drq+avg_target']
-folders_34 = ['drq+avg_target', 'drq+avg_target+critic_tangent_prop', 'drq+avg_target+05_critic_tangent_prop']
-folders_35 = ['drq+avg_target', 'drq+avg_target+05_kl']
+folders_33 = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'rad+lr_1e-3', 'drq+not_avg_target+lr_1e-3+save_kl',
+              'drq+avg_target+lr_1e-3+save_kl']
+folders_34 = ['drq+avg_target', 'drq+avg_target+critic_tangent_prop', 'drq+avg_target+05_critic_tangent_prop',
+              'rad+05_critic_tangent_prop']
+folders_35 = ['drq+avg_target+save_kl', 'drq+avg_target+actor_two_loss+save_kl', 'drq+avg_target+05_kl+save_kl',
+              'drq+avg_target+lr_1e-3+save_kl', 'drq+avg_target+lr_1e-3+actor_two_loss+save_kl',
+              'drq+avg_target+lr_1e-3+05_kl+save_kl', 'drq+avg_target+lr_1e-3+beta_kl_target_002+save_kl']
 folders_36 = ['drq+avg_target', 'drq+avg_target+08_beta_dist']
-folders_41 = ['drq+avg_target', 'drq+avg_target+08_beta_dist+05_critic_tangent+05_kl']
+folders_41 = ['drq+avg_target', 'drq+avg_target+08_beta_dist+05_critic_tangent+05_kl',
+              'drq+avg_target+lr_1e-3+08_beta_dist+05_critic_tangent+05_kl']
 
 
 prefix_3 = 'saved_runs/reacher_hard/'
@@ -160,7 +165,7 @@ folders_31 = ['rad+visualize+deterministic', 'drq+not_average_target+critic_loss
               'drq+not_average_target+critic_loss_div_2+actor_two+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+kl_loss+visualize+deterministic',
               'drq+not_average_target+critic_loss_div_2+05_kl_loss+visualize+deterministic']
-folders_37 = ['rad', 'drq+not_avg_target']
+folders_37 = ['rad', 'drq+not_avg_target', 'drq+avg_target']
 folders_38 = ['drq+avg_target', 'drq+avg_target+critic_tangent_prop', 'drq+avg_target+05_critic_tangent_prop']
 folders_39 = ['drq+avg_target', 'drq+avg_target+05_kl']
 folders_40 = ['drq+avg_target', 'drq+avg_target+08_beta_dist']
