@@ -6,12 +6,12 @@ import data_aug_new as new_aug
 
 class ReplayBuffer(object):
     """Buffer to store environment transitions."""
-    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug, degrees, dist_alpha):
+    def __init__(self, obs_shape, action_shape, capacity, image_pad, device, data_aug, degrees, dist_alpha,
+                 num_train_steps):
         self.capacity = capacity
         self.device = device
 
         self.aug = new_aug.aug(data_aug, image_pad, obs_shape, degrees, dist_alpha)
-
         self.obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
         self.next_obses = np.empty((capacity, *obs_shape), dtype=np.uint8)
         self.actions = np.empty((capacity, *action_shape), dtype=np.float32)
@@ -23,6 +23,11 @@ class ReplayBuffer(object):
         self.full = False
 
         self.data_aug = data_aug
+        self.image_pad = image_pad
+        self.obs_shape = obs_shape
+        self.degrees = degrees
+        self.num_train_steps = num_train_steps
+        self.init_dist_alpha = dist_alpha
 
     def __len__(self):
         return self.capacity if self.full else self.idx
@@ -38,7 +43,10 @@ class ReplayBuffer(object):
         self.idx = (self.idx + 1) % self.capacity
         self.full = self.full or self.idx == 0
 
-    def sample(self, batch_size):
+    def sample(self, batch_size, step):
+        # set alpha
+        dist_alpha = self.init_dist_alpha+(1.0-self.init_dist_alpha)*step/self.num_train_steps
+        self.aug = new_aug.aug(self.data_aug, self.image_pad, self.obs_shape, self.degrees, dist_alpha)
         idxs = np.random.randint(0,
                                  self.capacity if self.full else self.idx,
                                  size=batch_size)

@@ -244,7 +244,7 @@ class DRQAgent(object):
         self.critic_tangent_prop_weight = critic_tangent_prop_weight
         if self.add_kl_loss:
             self.init_beta = init_beta
-            self.log_beta = torch.tensor([np.log(self.init_beta)]).to(self.device)
+            self.log_beta = torch.tensor(np.log(self.init_beta)).to(self.device)
             self.log_beta.requires_grad = True
             # set target KL divergence
             self.target_KL = target_kl
@@ -418,6 +418,23 @@ class DRQAgent(object):
             actor_loss += actor_loss_aug
 
             actor_loss = actor_loss/2
+        elif self.add_kl_loss:
+            # KL divergence between A(obs_aug_1) and A(obs_aug_2)
+            with torch.no_grad():
+                mu, std = self.actor.forward_mu_std(obs_aug_1)
+            mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_2, detach_encoder=True)
+            dist1 = torch.distributions.Normal(torch.tanh(mu), std)
+            dist1_aug = torch.distributions.Normal(torch.tanh(mu_aug), std_aug)
+
+            KL = torch.mean(kl_divergence(dist1, dist1_aug))
+            # KL = torch.mean(kl_divergence(dist1_aug, dist1))
+            weighted_KL = self.beta.detach()*KL
+            logger.log('train_actor/KL_loss', KL, step)
+            actor_loss += weighted_KL
+
+            # self.actor_optimizer.zero_grad()
+            # weighted_KL.backward()
+            # self.actor_optimizer.step()
 
         logger.log('train_actor/loss', actor_loss, step)
         logger.log('train_actor/target_entropy', self.target_entropy, step)
@@ -429,31 +446,7 @@ class DRQAgent(object):
         self.actor_optimizer.step()
         self.actor.log(logger, step)
 
-        if self.add_kl_loss:
-            # KL divergence between A(obs_aug_1) and A(obs_aug_2)
-            with torch.no_grad():
-                mu, std = self.actor.forward_mu_std(obs_aug_1)
-            mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_2, detach_encoder=True)
-            dist1 = torch.distributions.Normal(torch.tanh(mu), std)
-            dist1_aug = torch.distributions.Normal(torch.tanh(mu_aug), std_aug)
-
-            KL = torch.mean(kl_divergence(dist1, dist1_aug))
-            weighted_KL = self.beta.detach()*KL
-            logger.log('train_actor/KL_loss', KL, step)
-
-            self.actor_optimizer.zero_grad()
-            weighted_KL.backward()
-            self.actor_optimizer.step()
-
-            if self.update_beta:
-                # update beta
-                beta_loss = -(self.beta * (KL - self.target_KL).detach()).mean()
-                logger.log('train_beta/loss', beta_loss, step)
-                logger.log('train_beta/value', self.beta, step)
-                self.log_beta_optimizer.zero_grad()
-                beta_loss.backward()
-                self.log_beta_optimizer.step()
-
+        # update alpha
         self.log_alpha_optimizer.zero_grad()
         alpha_loss = (self.alpha *
                       (-log_prob - self.target_entropy).detach()).mean()
@@ -462,9 +455,18 @@ class DRQAgent(object):
         alpha_loss.backward()
         self.log_alpha_optimizer.step()
 
+        if self.update_beta:
+            # update beta
+            self.log_beta_optimizer.zero_grad()
+            beta_loss = -(self.beta * (KL - self.target_KL).detach()).mean()
+            logger.log('train_beta/loss', beta_loss, step)
+            logger.log('train_beta/value', self.beta, step)
+            beta_loss.backward()
+            self.log_beta_optimizer.step()
+
     def update(self, replay_buffer, logger, step):
         obs, action, reward, next_obs, not_done, obs_aug_1, next_obs_aug_1, obs_aug_2, next_obs_aug_2 \
-            = replay_buffer.sample(self.batch_size)
+            = replay_buffer.sample(self.batch_size, step)
 
         logger.log('train/batch_reward', reward.mean(), step)
 
