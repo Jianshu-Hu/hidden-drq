@@ -120,6 +120,7 @@ class TangentProp():
         self.kernel_size = self.image_pad*2+1
 
     def expected_transform_obs(self, obs):
+        obs = obs / 255.
         if self.data_aug == 1:
             pad_obs = self.pad(obs)
             channel = pad_obs.shape[1]
@@ -132,6 +133,7 @@ class TangentProp():
         return expected_trans_obs
 
     def moments_transformed_obs(self, obs):
+        obs = obs / 255.
         if self.data_aug == 1 or self.data_aug == 5:
             pad_obs = self.pad(obs)
             channel = pad_obs.shape[1]
@@ -147,6 +149,7 @@ class TangentProp():
         return expected_trans_obs, variance_trans_obs
 
     def tangent_vector(self, obs):
+        obs = obs / 255.
         if self.data_aug == 1 or self.data_aug == 5:
             pad_obs = self.pad(obs)
             tan_vec_whole = torch.zeros_like(obs)
