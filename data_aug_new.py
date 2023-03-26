@@ -120,7 +120,6 @@ class TangentProp():
         self.kernel_size = self.image_pad*2+1
 
     def expected_transform_obs(self, obs):
-        obs = obs / 255.
         if self.data_aug == 1:
             pad_obs = self.pad(obs)
             channel = pad_obs.shape[1]
@@ -133,7 +132,6 @@ class TangentProp():
         return expected_trans_obs
 
     def moments_transformed_obs(self, obs):
-        obs = obs / 255.
         if self.data_aug == 1 or self.data_aug == 5:
             pad_obs = self.pad(obs)
             channel = pad_obs.shape[1]
@@ -149,28 +147,25 @@ class TangentProp():
         return expected_trans_obs, variance_trans_obs
 
     def tangent_vector(self, obs):
-        obs = obs / 255.
         if self.data_aug == 1 or self.data_aug == 5:
             pad_obs = self.pad(obs)
-            tan_vec_whole = torch.zeros_like(obs)
-            # horizontal shift 1 pixel
-            obs_aug = F.crop(pad_obs, top=1, left=2, height=obs.shape[-1], width=obs.shape[-1])
-            tan_vector_1 = obs_aug - obs
-            tan_vec_whole += torch.pow(tan_vector_1, 2)
-            obs_aug = F.crop(pad_obs, top=1, left=0, height=obs.shape[-1], width=obs.shape[-1])
-            tan_vector_2 = obs_aug - obs
-            tan_vec_whole += torch.pow(tan_vector_2, 2)
-            # vertical shift 1 pixel
-            obs_aug = F.crop(pad_obs, top=2, left=1, height=obs.shape[-1], width=obs.shape[-1])
-            tan_vector_3 = obs_aug - obs
-            tan_vec_whole += torch.pow(tan_vector_3, 2)
-            obs_aug = F.crop(pad_obs, top=0, left=1, height=obs.shape[-1], width=obs.shape[-1])
-            tan_vector_4 = obs_aug - obs
-            tan_vec_whole += torch.pow(tan_vector_4, 2)
-            tan_vec = torch.pow(tan_vec_whole, 0.5)
+            index = np.random.randint(4, size=1)[0]
+            if index == 0:
+                # horizontal shift 1 pixel
+                obs_aug = F.crop(pad_obs, top=1, left=2, height=obs.shape[-1], width=obs.shape[-1])
+            elif index == 1:
+                # horizontal shift 1 pixel
+                obs_aug = F.crop(pad_obs, top=1, left=0, height=obs.shape[-1], width=obs.shape[-1])
+            elif index == 2:
+                # vertical shift 1 pixel
+                obs_aug = F.crop(pad_obs, top=2, left=1, height=obs.shape[-1], width=obs.shape[-1])
+            elif index == 3:
+                # vertical shift 1 pixel
+                obs_aug = F.crop(pad_obs, top=0, left=1, height=obs.shape[-1], width=obs.shape[-1])
+            tan_vector = obs_aug - obs
         else:
-            tan_vec = None
-        return tan_vec
+            tan_vector = None
+        return tan_vector
 
 
 

@@ -50,7 +50,6 @@ def plot_several_folders(prefix, folders, label_list=[], plot_or_save='save', ti
 
 prefix_1 = 'saved_runs/cartpole/'
 
-prefix_2 = 'saved_runs/cheetah_run/'
 prefix_2_1 = 'saved_runs/cheetah_run_deterministic/'
 folders_5 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
@@ -115,7 +114,7 @@ folders_41 = ['drq+avg_target', 'drq+avg_target+08_beta_dist+05_critic_tangent+0
               'drq+avg_target+lr_1e-3+08_beta_dist+05_critic_tangent+05_kl']
 
 
-prefix_3 = 'saved_runs/reacher_hard/'
+
 folders_1 = ['drq', 'drq+regularization', 'drq+rotation', 'drq+rotation+regularization',
              'drq+hflip', 'drq+hflip+regularization']
 folders_3 = ['drq+batch_256', 'drq+rotation+batch_256', 'drq+cycnn+batch_256', 'drq+rotation+cycnn+batch_256',
@@ -304,14 +303,39 @@ folders_18 = ['drq', 'drq+aug_when_act', 'rad', 'rad+aug_when_act']
 # plot_several_folders(prefix=prefix_2_1, folders=folders_32, title='cheetah_run_deterministic_tangent')
 
 # 3.21
-plot_several_folders(prefix=prefix_2, folders=folders_33, title='cheetah_run_more_samples')
-plot_several_folders(prefix=prefix_2, folders=folders_34, title='cheetah_run_critic_tangent')
-plot_several_folders(prefix=prefix_2, folders=folders_35, title='cheetah_run_actor_kl')
+# plot_several_folders(prefix=prefix_2, folders=folders_33, title='cheetah_run_more_samples')
+# plot_several_folders(prefix=prefix_2, folders=folders_34, title='cheetah_run_critic_tangent')
+# plot_several_folders(prefix=prefix_2, folders=folders_35, title='cheetah_run_actor_kl')
+# plot_several_folders(prefix=prefix_2, folders=folders_36, title='cheetah_run_beta_dist')
+# plot_several_folders(prefix=prefix_2, folders=folders_41, title='cheetah_run_all')
+#
+# plot_several_folders(prefix=prefix_7, folders=folders_37, title='walker_run_more_samples')
+
+prefix_2 = 'saved_runs/cheetah_run/'
+prefix_3 = 'saved_runs/reacher_hard/'
+prefix_7 = 'saved_runs/walker_run/'
+prefix_9 = 'saved_runs/finger_spin/'
+# 3.28
+folders_more_samples = ['rad', 'drq+not_avg_target', 'drq+avg_target']
+folders_beta_dist = ['drq+avg_target', 'drq+avg_target+07_beta_dist']
+
+
+folders_36 = ['drq+avg_target', 'drq+avg_target+09_beta_dist', 'drq+avg_target+08_beta_dist',
+              'drq+avg_target+07_beta_dist', 'drq+avg_target+06_beta_dist', 'drq+avg_target+05_scheduled_beta_dist']
+folders_39 = ['drq+avg_target', 'drq+avg_target+weight_1_kl', 'drq+avg_target+weight_05_kl',
+              'drq+avg_target+weight_01_kl']
+
+plot_several_folders(prefix=prefix_2, folders=folders_more_samples, title='cheetah_run_more_samples')
+plot_several_folders(prefix=prefix_3, folders=folders_more_samples, title='reacher_hard_more_samples')
+plot_several_folders(prefix=prefix_7, folders=folders_more_samples, title='walker_run_more_samples')
+plot_several_folders(prefix=prefix_9, folders=folders_more_samples, title='finger_spin_more_samples')
+
 plot_several_folders(prefix=prefix_2, folders=folders_36, title='cheetah_run_beta_dist')
-plot_several_folders(prefix=prefix_2, folders=folders_41, title='cheetah_run_all')
+plot_several_folders(prefix=prefix_3, folders=folders_beta_dist, title='reacher_hard_beta_dist')
+plot_several_folders(prefix=prefix_7, folders=folders_beta_dist, title='walker_run_beta_dist')
+plot_several_folders(prefix=prefix_9, folders=folders_beta_dist, title='finger_spin_beta_dist')
 
-plot_several_folders(prefix=prefix_7, folders=folders_37, title='walker_run_more_samples')
-
+plot_several_folders(prefix=prefix_2, folders=folders_39, title='cheetah_run_kl')
 # import torch
 # alpha = 0.8
 # beta = torch.distributions.Beta(alpha, alpha)

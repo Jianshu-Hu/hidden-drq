@@ -326,11 +326,12 @@ class DRQAgent(object):
         if self.critic_tangent_prop:
             with torch.no_grad():
                 # calculate the expected transformed image and tangent vector
-                expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_1)
-                tangent_vector1 = torch.pow(torch.abs(variance_trans_obs), 0.5)
-                expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_2)
-                tangent_vector2 = torch.pow(torch.abs(variance_trans_obs), 0.5)
-                # tangent_vector = self.tangent_prop_regu.tangent_vector(obs)
+                # expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_1)
+                # tangent_vector1 = torch.pow(torch.abs(variance_trans_obs), 0.5)
+                # expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_2)
+                # tangent_vector2 = torch.pow(torch.abs(variance_trans_obs), 0.5)
+                tangent_vector1 = self.tangent_prop_regu.tangent_vector(obs_aug_1)
+                tangent_vector2 = self.tangent_prop_regu.tangent_vector(obs_aug_2)
             obs_aug_1.requires_grad = True
             obs_aug_2.requires_grad = True
             # critic loss
@@ -352,10 +353,8 @@ class DRQAgent(object):
             jacobian2 = torch.autograd.grad(outputs=Q2, inputs=obs_aug_2,
                                            grad_outputs=torch.ones(Q2.size(), device=self.device),
                                            retain_graph=True, create_graph=True)[0]
-            tan_loss1 = torch.mean(torch.sum(torch.pow(
-                torch.linalg.matrix_norm(jacobian1 * tangent_vector1), 2), dim=-1), dim=-1)
-            tan_loss2 = torch.mean(torch.mean(torch.pow(
-                torch.linalg.matrix_norm(jacobian2 * tangent_vector2), 2), dim=-1), dim=-1)
+            tan_loss1 = torch.mean(torch.sum((jacobian1 * tangent_vector1), (3, 2, 1)), dim=-1)
+            tan_loss2 = torch.mean(torch.sum((jacobian2 * tangent_vector2), (3, 2, 1)), dim=-1)
 
             tangent_prop_loss = tan_loss1+tan_loss2
             critic_loss += self.critic_tangent_prop_weight*tangent_prop_loss

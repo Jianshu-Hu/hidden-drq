@@ -228,12 +228,12 @@ prefix_13 = ['walker_run+crop+RAD', 'walker_run+crop+DrQ_not_avg_target']
 # 3.21
 # plot_percentage(domain_1_1, prefix_8, title='deterministic_tangent', action=True)
 
-plot_percentage(domain_1, prefix_9, title='critic_more_samples', action=True)
-plot_percentage(domain_1, prefix_10, title='critic_tangent_prop', action=True)
-plot_percentage(domain_1, prefix_11, title='beta_dist', action=True)
-plot_percentage(domain_1, prefix_12, title='actor', action=True, kl=True)
-
-plot_percentage(domain_2, prefix_13, title='critic_more_samples', action=True)
+# plot_percentage(domain_1, prefix_9, title='critic_more_samples', action=True)
+# plot_percentage(domain_1, prefix_10, title='critic_tangent_prop', action=True)
+# plot_percentage(domain_1, prefix_11, title='beta_dist', action=True)
+# plot_percentage(domain_1, prefix_12, title='actor', action=True, kl=True)
+#
+# plot_percentage(domain_2, prefix_13, title='critic_more_samples', action=True)
 
 
 
