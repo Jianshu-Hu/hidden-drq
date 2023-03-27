@@ -353,8 +353,8 @@ class DRQAgent(object):
             jacobian2 = torch.autograd.grad(outputs=Q2, inputs=obs_aug_2,
                                            grad_outputs=torch.ones(Q2.size(), device=self.device),
                                            retain_graph=True, create_graph=True)[0]
-            tan_loss1 = torch.mean(torch.sum((jacobian1 * tangent_vector1), (3, 2, 1)), dim=-1)
-            tan_loss2 = torch.mean(torch.sum((jacobian2 * tangent_vector2), (3, 2, 1)), dim=-1)
+            tan_loss1 = torch.mean(torch.square(torch.sum((jacobian1 * tangent_vector1), (3, 2, 1))), dim=-1)
+            tan_loss2 = torch.mean(torch.square(torch.sum((jacobian2 * tangent_vector2), (3, 2, 1))), dim=-1)
 
             tangent_prop_loss = tan_loss1+tan_loss2
             critic_loss += self.critic_tangent_prop_weight*tangent_prop_loss
