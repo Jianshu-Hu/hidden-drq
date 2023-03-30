@@ -191,7 +191,7 @@ class DRQAgent(object):
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, image_pad, data_aug, RAD,
-                 degrees, visualize, tag, seed, dist_alpha, add_kl_loss, init_beta, add_actor_obs_aug_loss,
+                 degrees, visualize, tag, seed, add_kl_loss, init_beta, add_actor_obs_aug_loss,
                  update_beta, target_kl, avg_target, critic_tangent_prop, critic_tangent_prop_weight):
         self.action_range = action_range
         self.device = device
@@ -229,7 +229,6 @@ class DRQAgent(object):
         self.data_aug = data_aug
 
         self.image_pad = image_pad
-        self.aug = new_aug.aug(data_aug, image_pad, obs_shape, degrees, dist_alpha)
         self.tangent_prop_regu = new_aug.TangentProp(data_aug, device)
 
         self.mse_loss = nn.MSELoss()

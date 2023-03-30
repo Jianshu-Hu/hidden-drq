@@ -86,7 +86,8 @@ class Workspace(object):
                                           self.cfg.image_pad, self.device,
                                           self.cfg.data_aug,
                                           self.cfg.degrees,
-                                          self.cfg.dist_alpha,
+                                          self.cfg.init_dist_alpha,
+                                          self.cfg.final_dist_alpha,
                                           self.cfg.num_train_steps)
 
         self.video_recorder = VideoRecorder(

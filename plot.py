@@ -317,14 +317,22 @@ prefix_9 = 'saved_runs/finger_spin/'
 # 3.28
 folders_more_samples = ['rad', 'drq+not_avg_target', 'drq+avg_target']
 folders_beta_dist = ['drq+avg_target', 'drq+avg_target+07_beta_dist']
+folders_kl = ['drq+avg_target', 'drq+avg_target+01_kl']
 
 
 folders_42 = ['drq+avg_target', 'drq+avg_target+09_beta_dist', 'drq+avg_target+08_beta_dist',
               'drq+avg_target+07_beta_dist', 'drq+avg_target+06_beta_dist', 'drq+avg_target+05_scheduled_beta_dist']
-folders_43 = ['drq+avg_target', 'drq+avg_target+07_beta_dist', 'drq+avg_target+scheduled_07_beta_dist']
-folders_44 = ['drq+avg_target', 'drq+avg_target+weight_1_kl', 'drq+avg_target+weight_05_kl',
-              'drq+avg_target+weight_01_kl']
-folders_45 = ['drq+avg_target', 'drq+avg_target+01_kl']
+folders_43 = ['drq+avg_target', 'drq+avg_target+07_beta_dist', 'drq+avg_target+08_beta_dist',
+              'drq+avg_target+scheduled_07_beta_dist',
+              'drq+avg_target+scheduled_07_2_beta_dist', 'drq+avg_target+scheduled_1_2_beta_dist']
+folders_44 = ['drq+avg_target', 'drq+avg_target+1_kl', 'drq+avg_target+05_kl',
+              'drq+avg_target+01_kl']
+folders_45 = ['drq+avg_target', 'drq+avg_target+01_kl', 'drq+avg_target+01_kl+scheduled_07_beta_dist',
+              'drq+avg_target+01_kl+scheduled_08_beta_dist', 'drq+avg_target+01_kl+085_beta_dist',
+              'drq+avg_target+01_kl+09_beta_dist']
+folders_46 = ['drq+avg_target', 'drq+avg_target+1_kl', 'drq+avg_target+05_kl',
+              'drq+avg_target+01_kl', 'drq+avg_target+01_kl+085_beta_dist',
+              'drq+avg_target+01_kl+scheduled_08_beta_dist']
 
 plot_several_folders(prefix=prefix_2, folders=folders_more_samples, title='cheetah_run_more_samples')
 plot_several_folders(prefix=prefix_3, folders=folders_more_samples, title='reacher_hard_more_samples')
@@ -336,8 +344,10 @@ plot_several_folders(prefix=prefix_3, folders=folders_beta_dist, title='reacher_
 plot_several_folders(prefix=prefix_7, folders=folders_43, title='walker_run_beta_dist')
 plot_several_folders(prefix=prefix_9, folders=folders_beta_dist, title='finger_spin_beta_dist')
 
-plot_several_folders(prefix=prefix_2, folders=folders_44, title='cheetah_run_kl')
+plot_several_folders(prefix=prefix_2, folders=folders_46, title='cheetah_run_kl')
+plot_several_folders(prefix=prefix_3, folders=folders_44, title='reacher_hard_kl')
 plot_several_folders(prefix=prefix_7, folders=folders_45, title='walker_run_kl')
+plot_several_folders(prefix=prefix_9, folders=folders_kl, title='finger_spin_kl')
 # import torch
 # alpha = 0.8
 # beta = torch.distributions.Beta(alpha, alpha)

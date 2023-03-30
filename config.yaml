@@ -16,7 +16,8 @@ seed: 1
 # new
 data_aug: 1
 degrees: 30.0
-dist_alpha: 0.8
+init_dist_alpha: 0.8
+final_dist_alpha: 1.0
 
 RAD: false
 avg_target: true
@@ -24,7 +25,7 @@ tan_prop: false
 tan_prop_weight: 0.5
 
 add_kl_loss: false
-init_beta: 0.5
+init_beta: 0.1
 update_beta: false
 target_kl: 0.02
 add_actor_obs_aug_loss: false
@@ -73,7 +74,6 @@ agent:
     visualize: ${visualize}
     tag: ${tag}
     seed: ${seed}
-    dist_alpha: ${dist_alpha}
     add_kl_loss: ${add_kl_loss}
     init_beta: ${init_beta}
     add_actor_obs_aug_loss: ${add_actor_obs_aug_loss}
