@@ -15,6 +15,8 @@ from torch import nn
 from torchvision.transforms import functional as F
 import torchvision
 import numpy as np
+from torch.distributions.categorical import Categorical
+from kornia.geometry.transform.crop2d import crop_by_boxes
 
 
 class BetaCropGenerator(rg.CropGenerator):
@@ -68,6 +70,32 @@ class RandomBetaRotation(kornia.augmentation.RandomRotation):
         self._param_generator = BetaRotationGenerator((degrees, "degrees", 0.0, (-360.0, 360.0)), alpha=alpha)
 
 
+class TrainableCrop():
+    def __init__(self, image_pad, image_size,):
+        self.image_pad = image_pad
+        self.image_size = image_size
+
+    def forward(self, images, prob_h, prob_w):
+        # images (B,C,H,W)
+        batch_size = images.size()[0]
+        distribution_h = Categorical(prob_h)
+        distribution_w = Categorical(prob_w)
+        samples_h = distribution_h.sample(sample_shape=[batch_size]).unsqueeze(-1)
+        samples_w = distribution_w.sample(sample_shape=[batch_size]).unsqueeze(-1)
+        src_box = torch.zeros([batch_size, 4, 2])
+        src_box[:, 0, :] = torch.concat([samples_h, samples_w], dim=1)
+        src_box[:, 1, :] = torch.concat([samples_h + self.image_size-1, samples_w], dim=1)
+        src_box[:, 2, :] = torch.concat([samples_h + self.image_size-1, samples_w + self.image_size-1], dim=1)
+        src_box[:, 3, :] = torch.concat([samples_h, samples_w + self.image_size-1], dim=1)
+        dst_box = torch.tensor([[0, 0], [self.image_size-1, 0],
+                                [self.image_size-1, self.image_size-1], [0, self.image_size-1]], dtype=torch.float32)
+        dst_box = dst_box.repeat(batch_size, 1, 1)
+
+        output = crop_by_boxes(images, src_box, dst_box)
+        logprob = distribution_h.log_prob(samples_h)+distribution_w.log_prob(samples_w)
+        return logprob, output
+
+
 def aug(data_aug, image_pad, obs_shape, degrees, dist_alpha):
     if data_aug == 1:
         # random crop
@@ -95,6 +123,8 @@ def aug(data_aug, image_pad, obs_shape, degrees, dist_alpha):
     elif data_aug == 6:
         # random rotation with beta distribution
         augmentation = RandomBetaRotation(degrees=degrees, alpha=dist_alpha)
+    elif data_aug == 7:
+        augmentation = TrainableCrop(image_pad, obs_shape[-1])
     else:
         augmentation = None
 

@@ -79,4 +79,36 @@ class ReplayBuffer(object):
         return obses, actions, rewards, next_obses, not_dones_no_max,\
                obses_aug_1, next_obses_aug_1, obses_aug_2, next_obses_aug_2
 
+    def sample_from_distribution(self, batch_size, step, prob_h, prob_w):
+        self.aug = new_aug.aug(self.data_aug, self.image_pad, self.obs_shape, self.degrees, self.init_dist_alpha)
+        idxs = np.random.randint(0,
+                                 self.capacity if self.full else self.idx,
+                                 size=batch_size)
+
+        obses = self.obses[idxs]
+        next_obses = self.next_obses[idxs]
+        obses_aug_1 = obses.copy()
+        next_obses_aug_1 = next_obses.copy()
+        obses_aug_2 = obses.copy()
+        next_obses_aug_2 = next_obses.copy()
+
+        obses = torch.as_tensor(obses, device=self.device).float()
+        next_obses = torch.as_tensor(next_obses, device=self.device).float()
+        obses_aug_1 = torch.as_tensor(obses_aug_1, device=self.device).float()
+        next_obses_aug_1 = torch.as_tensor(next_obses_aug_1, device=self.device).float()
+        obses_aug_2 = torch.as_tensor(obses_aug_2, device=self.device).float()
+        next_obses_aug_2 = torch.as_tensor(next_obses_aug_2, device=self.device).float()
+
+        actions = torch.as_tensor(self.actions[idxs], device=self.device)
+        rewards = torch.as_tensor(self.rewards[idxs], device=self.device)
+        not_dones_no_max = torch.as_tensor(self.not_dones_no_max[idxs], device=self.device)
+
+        logprob_aug_1, obses_aug_1 = self.aug.forward(obses_aug_1, prob_h, prob_w)
+        _, next_obses_aug_1 = self.aug.forward(next_obses_aug_1, prob_h, prob_w)
+
+        logprob_aug_2, obses_aug_2 = self.aug.forward(obses_aug_2, prob_h, prob_w)
+        _, next_obses_aug_2 = self.aug.forward(next_obses_aug_2, prob_h, prob_w)
+
+        return obses, actions, rewards, next_obses, not_dones_no_max,\
+               obses_aug_1, next_obses_aug_1, obses_aug_2, next_obses_aug_2, logprob_aug_1, logprob_aug_2
 

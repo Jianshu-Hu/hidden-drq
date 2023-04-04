@@ -250,6 +250,15 @@ class DRQAgent(object):
             self.log_beta_optimizer = torch.optim.Adam([self.log_beta], lr=lr)
         self.add_actor_obs_aug_loss = add_actor_obs_aug_loss
 
+        self.lr = lr
+        if self.data_aug == 7:
+            # trainable distribution for data augmentation
+            self.prob_h = (torch.ones(2*image_pad+1)/(2*image_pad+1)).to(self.device)
+            self.prob_h.requires_grad = True
+            self.prob_w = (torch.ones(2*image_pad+1)/(2*image_pad+1)).to(self.device)
+            self.prob_w.requires_grad = True
+            self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=lr)
+
     def train(self, training=True):
         self.training = training
         self.actor.train(training)
@@ -274,7 +283,7 @@ class DRQAgent(object):
         return utils.to_np(action[0])
 
     def update_critic(self, obs, obs_aug_1, obs_aug_2, action, reward, next_obs,
-                      next_obs_aug_1, next_obs_aug_2, not_done, logger, step):
+                      next_obs_aug_1, next_obs_aug_2, not_done, logger, step, logprob_aug_1, logprob_aug_2):
         with torch.no_grad():
             dist_aug_1 = self.actor(next_obs_aug_1)
             next_action_aug_1 = dist_aug_1.rsample()
@@ -366,8 +375,9 @@ class DRQAgent(object):
                 if self.avg_target:
                     # DrQ
                     target_Q = (target_Q_aug_1 + target_Q_aug_2) / 2
-                    critic_loss = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
-                    critic_loss += F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
+                    critic_loss_1 = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
+                    critic_loss_2 = F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
+                    critic_loss = critic_loss_1+critic_loss_2
                 else:
                     # DrQ without average target / RAD with two samples
                     critic_loss = F.mse_loss(Q1_aug_1, target_Q_aug_1) + F.mse_loss(Q2_aug_1, target_Q_aug_1)
@@ -387,6 +397,29 @@ class DRQAgent(object):
         if self.critic_tangent_prop:
             obs_aug_1.grad.zero_()
             obs_aug_2.grad.zero_()
+
+        # update the probability distribution of data augmentation for DrQ with average target
+        if self.data_aug == 7 and not self.RAD and self.avg_target:
+            prob_loss = torch.mean(logprob_aug_1*critic_loss_1.detach())+\
+                        torch.mean(logprob_aug_2*critic_loss_2.detach())
+            logger.log('train_prop/loss', prob_loss, step)
+            self.prob_optimizer.zero_grad()
+            prob_loss.backward()
+            self.prob_optimizer.step()
+
+            with torch.no_grad():
+                self.prob_h = torch.where(self.prob_h < 0, 0, self.prob_h)
+                self.prob_h = self.prob_h / torch.sum(self.prob_h)
+                self.prob_w = torch.where(self.prob_w < 0, 0, self.prob_w)
+                self.prob_w = self.prob_w / torch.sum(self.prob_w)
+
+            for index in range(self.prob_h.size()[0]):
+                logger.log('train_prop/prob_h_' + str(index), self.prob_h[index], step)
+                logger.log('train_prop/prob_w_' + str(index), self.prob_w[index], step)
+
+            self.prob_h.requires_grad = True
+            self.prob_w.requires_grad = True
+            self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=self.lr)
 
         self.critic.log(logger, step)
 
@@ -463,13 +496,23 @@ class DRQAgent(object):
             self.log_beta_optimizer.step()
 
     def update(self, replay_buffer, logger, step):
-        obs, action, reward, next_obs, not_done, obs_aug_1, next_obs_aug_1, obs_aug_2, next_obs_aug_2 \
-            = replay_buffer.sample(self.batch_size, step)
+        if self.data_aug == 7:
+            # sample from specific distribution
+            obs, action, reward, next_obs, not_done, obs_aug_1, next_obs_aug_1,\
+            obs_aug_2, next_obs_aug_2, logprob_aug_1, logprob_aug_2 =\
+                replay_buffer.sample_from_distribution(self.batch_size, step, self.prob_h, self.prob_w)
+            logger.log('train/batch_reward', reward.mean(), step)
 
-        logger.log('train/batch_reward', reward.mean(), step)
+            self.update_critic(obs, obs_aug_1, obs_aug_2, action, reward,
+                               next_obs, next_obs_aug_1, next_obs_aug_2, not_done, logger, step, logprob_aug_1,
+                               logprob_aug_2)
+        else:
+            obs, action, reward, next_obs, not_done, obs_aug_1, next_obs_aug_1, obs_aug_2, next_obs_aug_2 \
+                = replay_buffer.sample(self.batch_size, step)
+            logger.log('train/batch_reward', reward.mean(), step)
 
-        self.update_critic(obs, obs_aug_1, obs_aug_2, action, reward,
-                           next_obs, next_obs_aug_1, next_obs_aug_2, not_done, logger, step)
+            self.update_critic(obs, obs_aug_1, obs_aug_2, action, reward,
+                               next_obs, next_obs_aug_1, next_obs_aug_2, not_done, logger, step, None, None)
 
         if step % self.actor_update_frequency == 0:
             self.update_actor_and_alpha(obs, obs_aug_1, obs_aug_2, logger, step)

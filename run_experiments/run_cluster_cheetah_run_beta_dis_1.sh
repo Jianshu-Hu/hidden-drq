@@ -4,8 +4,8 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq_test
 
-tag=cheetah_run+crop+DrQ_avg_target+05_scheduled_beta_dist
+tag=cheetah_run+crop+DrQ_avg_target+01_kl+trainable_dist
 seed=1
 
 echo "start running $tag with seed $seed"
-python train.py data_aug=5 dist_alpha=0.5 RAD=false avg_target=true visualize=true env=cheetah_run action_repeat=2 num_train_steps=250000 tag=$tag seed=$seed
+python train.py data_aug=7 add_kl_loss=true init_beta=0.1 visualize=true env=cheetah_run action_repeat=2 num_train_steps=250000 tag=$tag seed=$seed
