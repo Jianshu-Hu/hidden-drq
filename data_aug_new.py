@@ -78,8 +78,8 @@ class TrainableCrop():
     def forward(self, images, prob_h, prob_w):
         # images (B,C,H,W)
         batch_size = images.size()[0]
-        distribution_h = Categorical(prob_h)
-        distribution_w = Categorical(prob_w)
+        distribution_h = Categorical(torch.nn.functional.softmax(prob_h))
+        distribution_w = Categorical(torch.nn.functional.softmax(prob_w))
         samples_h = distribution_h.sample(sample_shape=[batch_size]).unsqueeze(-1)
         samples_w = distribution_w.sample(sample_shape=[batch_size]).unsqueeze(-1)
         src_box = torch.zeros([batch_size, 4, 2])

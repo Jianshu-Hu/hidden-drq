@@ -4,7 +4,7 @@ cd /bigdata/users/jhu/hidden-drq
 source /bigdata/users/yjiang/miniconda3/bin/activate
 conda activate drq_test
 
-tag=walker_run+crop+DrQ_avg_target+01_kl+trainable_dist
+tag=walker_run+crop+DrQ_avg_target+01_kl+trainable_dist_lr_1e-4
 seed=5
 
 echo "start running $tag with seed $seed"

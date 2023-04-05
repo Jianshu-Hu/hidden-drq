@@ -250,14 +250,13 @@ class DRQAgent(object):
             self.log_beta_optimizer = torch.optim.Adam([self.log_beta], lr=lr)
         self.add_actor_obs_aug_loss = add_actor_obs_aug_loss
 
-        self.lr = lr
         if self.data_aug == 7:
             # trainable distribution for data augmentation
             self.prob_h = (torch.ones(2*image_pad+1)/(2*image_pad+1)).to(self.device)
             self.prob_h.requires_grad = True
             self.prob_w = (torch.ones(2*image_pad+1)/(2*image_pad+1)).to(self.device)
             self.prob_w.requires_grad = True
-            self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=lr)
+            self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=0.1*lr)
 
     def train(self, training=True):
         self.training = training
@@ -400,26 +399,18 @@ class DRQAgent(object):
 
         # update the probability distribution of data augmentation for DrQ with average target
         if self.data_aug == 7 and not self.RAD and self.avg_target:
-            prob_loss = torch.mean(logprob_aug_1*critic_loss_1.detach())+\
-                        torch.mean(logprob_aug_2*critic_loss_2.detach())
+            prob_loss = torch.mean(-logprob_aug_1*critic_loss_1.detach())+\
+                        torch.mean(-logprob_aug_2*critic_loss_2.detach())
             logger.log('train_prop/loss', prob_loss, step)
             self.prob_optimizer.zero_grad()
             prob_loss.backward()
             self.prob_optimizer.step()
 
-            with torch.no_grad():
-                self.prob_h = torch.where(self.prob_h < 0, 0, self.prob_h)
-                self.prob_h = self.prob_h / torch.sum(self.prob_h)
-                self.prob_w = torch.where(self.prob_w < 0, 0, self.prob_w)
-                self.prob_w = self.prob_w / torch.sum(self.prob_w)
-
+            softmax_prob_h = torch.nn.functional.softmax(self.prob_h)
+            softmax_prob_w = torch.nn.functional.softmax(self.prob_w)
             for index in range(self.prob_h.size()[0]):
-                logger.log('train_prop/prob_h_' + str(index), self.prob_h[index], step)
-                logger.log('train_prop/prob_w_' + str(index), self.prob_w[index], step)
-
-            self.prob_h.requires_grad = True
-            self.prob_w.requires_grad = True
-            self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=self.lr)
+                logger.log('train_prop/prob_h_' + str(index), softmax_prob_h[index], step)
+                logger.log('train_prop/prob_w_' + str(index), softmax_prob_w[index], step)
 
         self.critic.log(logger, step)
 
