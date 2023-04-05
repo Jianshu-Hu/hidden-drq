@@ -251,12 +251,19 @@ class DRQAgent(object):
         self.add_actor_obs_aug_loss = add_actor_obs_aug_loss
 
         if self.data_aug == 7:
-            # trainable distribution for data augmentation
+            # trainable uniform distribution for data augmentation
             self.prob_h = (torch.ones(2*image_pad+1)/(2*image_pad+1)).to(self.device)
             self.prob_h.requires_grad = True
             self.prob_w = (torch.ones(2*image_pad+1)/(2*image_pad+1)).to(self.device)
             self.prob_w.requires_grad = True
             self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=0.1*lr)
+        elif self.data_aug == 8:
+            # trainable beta distribution for data augmentation
+            self.prob_h = torch.ones(2).to(self.device)
+            self.prob_h.requires_grad = True
+            self.prob_w = torch.ones(2).to(self.device)
+            self.prob_w.requires_grad = True
+            self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=0.1 * lr)
 
     def train(self, training=True):
         self.training = training
@@ -398,19 +405,23 @@ class DRQAgent(object):
             obs_aug_2.grad.zero_()
 
         # update the probability distribution of data augmentation for DrQ with average target
-        if self.data_aug == 7 and not self.RAD and self.avg_target:
+        if self.data_aug == 7 or self.data_aug == 8:
             prob_loss = torch.mean(-logprob_aug_1*critic_loss_1.detach())+\
                         torch.mean(-logprob_aug_2*critic_loss_2.detach())
             logger.log('train_prop/loss', prob_loss, step)
             self.prob_optimizer.zero_grad()
             prob_loss.backward()
             self.prob_optimizer.step()
-
-            softmax_prob_h = torch.nn.functional.softmax(self.prob_h)
-            softmax_prob_w = torch.nn.functional.softmax(self.prob_w)
-            for index in range(self.prob_h.size()[0]):
-                logger.log('train_prop/prob_h_' + str(index), softmax_prob_h[index], step)
-                logger.log('train_prop/prob_w_' + str(index), softmax_prob_w[index], step)
+            if self.data_aug == 7:
+                softmax_prob_h = torch.nn.functional.softmax(self.prob_h)
+                softmax_prob_w = torch.nn.functional.softmax(self.prob_w)
+                for index in range(self.prob_h.size()[0]):
+                    logger.log('train_prop/prob_h_' + str(index), softmax_prob_h[index], step)
+                    logger.log('train_prop/prob_w_' + str(index), softmax_prob_w[index], step)
+            elif self.data_aug == 8:
+                for index in range(self.prob_h.size()[0]):
+                    logger.log('train_prop/prob_h_' + str(index), self.prob_h[index], step)
+                    logger.log('train_prop/prob_w_' + str(index), self.prob_w[index], step)
 
         self.critic.log(logger, step)
 
@@ -487,7 +498,7 @@ class DRQAgent(object):
             self.log_beta_optimizer.step()
 
     def update(self, replay_buffer, logger, step):
-        if self.data_aug == 7:
+        if self.data_aug == 7 or self.data_aug == 8:
             # sample from specific distribution
             obs, action, reward, next_obs, not_done, obs_aug_1, next_obs_aug_1,\
             obs_aug_2, next_obs_aug_2, logprob_aug_1, logprob_aug_2 =\

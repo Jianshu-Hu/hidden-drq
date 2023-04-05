@@ -71,17 +71,23 @@ class RandomBetaRotation(kornia.augmentation.RandomRotation):
 
 
 class TrainableCrop():
-    def __init__(self, image_pad, image_size,):
+    def __init__(self, image_pad, image_size, data_aug):
         self.image_pad = image_pad
         self.image_size = image_size
+        self.data_aug = data_aug
 
     def forward(self, images, prob_h, prob_w):
         # images (B,C,H,W)
         batch_size = images.size()[0]
-        distribution_h = Categorical(torch.nn.functional.softmax(prob_h))
-        distribution_w = Categorical(torch.nn.functional.softmax(prob_w))
+        if self.data_aug == 7:
+            distribution_h = Categorical(torch.nn.functional.softmax(prob_h))
+            distribution_w = Categorical(torch.nn.functional.softmax(prob_w))
+        elif self.data_aug == 8:
+            distribution_h = Beta(prob_h[0], prob_h[1])
+            distribution_w = Beta(prob_w[0], prob_w[1])
         samples_h = distribution_h.sample(sample_shape=[batch_size]).unsqueeze(-1)
         samples_w = distribution_w.sample(sample_shape=[batch_size]).unsqueeze(-1)
+        logprob = distribution_h.log_prob(samples_h) + distribution_w.log_prob(samples_w)
         src_box = torch.zeros([batch_size, 4, 2])
         src_box[:, 0, :] = torch.concat([samples_h, samples_w], dim=1)
         src_box[:, 1, :] = torch.concat([samples_h + self.image_size-1, samples_w], dim=1)
@@ -92,7 +98,6 @@ class TrainableCrop():
         dst_box = dst_box.repeat(batch_size, 1, 1)
 
         output = crop_by_boxes(images, src_box, dst_box)
-        logprob = distribution_h.log_prob(samples_h)+distribution_w.log_prob(samples_w)
         return logprob, output
 
 
@@ -123,8 +128,8 @@ def aug(data_aug, image_pad, obs_shape, degrees, dist_alpha):
     elif data_aug == 6:
         # random rotation with beta distribution
         augmentation = RandomBetaRotation(degrees=degrees, alpha=dist_alpha)
-    elif data_aug == 7:
-        augmentation = TrainableCrop(image_pad, obs_shape[-1])
+    elif data_aug == 7 or data_aug == 8:
+        augmentation = TrainableCrop(image_pad, obs_shape[-1], data_aug)
     else:
         augmentation = None
 
