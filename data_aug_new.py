@@ -75,10 +75,12 @@ class TrainableCrop():
         self.image_pad = image_pad
         self.image_size = image_size
         self.data_aug = data_aug
+        self.pad = nn.Sequential(nn.ReplicationPad2d(image_pad))
 
     def forward(self, images, prob_h, prob_w):
         # images (B,C,H,W)
         batch_size = images.size()[0]
+        images = self.pad(images)
         if self.data_aug == 7:
             distribution_h = Categorical(torch.nn.functional.softmax(prob_h))
             distribution_w = Categorical(torch.nn.functional.softmax(prob_w))
@@ -89,10 +91,16 @@ class TrainableCrop():
         samples_w = distribution_w.sample(sample_shape=[batch_size]).unsqueeze(-1)
         logprob = distribution_h.log_prob(samples_h) + distribution_w.log_prob(samples_w)
         src_box = torch.zeros([batch_size, 4, 2])
-        src_box[:, 0, :] = torch.concat([samples_h, samples_w], dim=1)
-        src_box[:, 1, :] = torch.concat([samples_h + self.image_size-1, samples_w], dim=1)
-        src_box[:, 2, :] = torch.concat([samples_h + self.image_size-1, samples_w + self.image_size-1], dim=1)
-        src_box[:, 3, :] = torch.concat([samples_h, samples_w + self.image_size-1], dim=1)
+        if self.data_aug == 7:
+            top_left_h = samples_h
+            top_left_w = samples_w
+        elif self.data_aug == 8:
+            top_left_h = (samples_h*(self.image_pad*2+1)).floor()
+            top_left_w = (samples_w*(self.image_pad*2+1)).floor()
+        src_box[:, 0, :] = torch.concat([top_left_h, top_left_w], dim=1)
+        src_box[:, 1, :] = torch.concat([top_left_h + self.image_size-1, top_left_w], dim=1)
+        src_box[:, 2, :] = torch.concat([top_left_h + self.image_size-1, top_left_w + self.image_size-1], dim=1)
+        src_box[:, 3, :] = torch.concat([top_left_h, top_left_w + self.image_size-1], dim=1)
         dst_box = torch.tensor([[0, 0], [self.image_size-1, 0],
                                 [self.image_size-1, self.image_size-1], [0, self.image_size-1]], dtype=torch.float32)
         dst_box = dst_box.repeat(batch_size, 1, 1)

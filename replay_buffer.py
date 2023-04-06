@@ -81,6 +81,8 @@ class ReplayBuffer(object):
 
     def sample_from_distribution(self, batch_size, step, prob_h, prob_w):
         self.aug = new_aug.aug(self.data_aug, self.image_pad, self.obs_shape, self.degrees, self.init_dist_alpha)
+        # uniform distribution for next state
+        aug_next_state = new_aug.aug(1, self.image_pad, self.obs_shape, self.degrees, self.init_dist_alpha)
         idxs = np.random.randint(0,
                                  self.capacity if self.full else self.idx,
                                  size=batch_size)
@@ -104,10 +106,10 @@ class ReplayBuffer(object):
         not_dones_no_max = torch.as_tensor(self.not_dones_no_max[idxs], device=self.device)
 
         logprob_aug_1, obses_aug_1 = self.aug.forward(obses_aug_1, prob_h, prob_w)
-        _, next_obses_aug_1 = self.aug.forward(next_obses_aug_1, prob_h, prob_w)
+        next_obses_aug_1 = aug_next_state(next_obses_aug_1)
 
         logprob_aug_2, obses_aug_2 = self.aug.forward(obses_aug_2, prob_h, prob_w)
-        _, next_obses_aug_2 = self.aug.forward(next_obses_aug_2, prob_h, prob_w)
+        next_obses_aug_2 = aug_next_state(next_obses_aug_2)
 
         return obses, actions, rewards, next_obses, not_dones_no_max,\
                obses_aug_1, next_obses_aug_1, obses_aug_2, next_obses_aug_2, logprob_aug_1, logprob_aug_2

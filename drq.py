@@ -259,9 +259,9 @@ class DRQAgent(object):
             self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=0.1*lr)
         elif self.data_aug == 8:
             # trainable beta distribution for data augmentation
-            self.prob_h = torch.ones(2).to(self.device)
+            self.prob_h = torch.tensor([1.0, 1.0]).to(self.device)
             self.prob_h.requires_grad = True
-            self.prob_w = torch.ones(2).to(self.device)
+            self.prob_w = torch.tensor([1.0, 1.0]).to(self.device)
             self.prob_w.requires_grad = True
             self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=0.1 * lr)
 
