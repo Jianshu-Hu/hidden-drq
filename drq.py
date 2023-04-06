@@ -381,9 +381,8 @@ class DRQAgent(object):
                 if self.avg_target:
                     # DrQ
                     target_Q = (target_Q_aug_1 + target_Q_aug_2) / 2
-                    critic_loss_1 = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
-                    critic_loss_2 = F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
-                    critic_loss = critic_loss_1+critic_loss_2
+                    critic_loss = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
+                    critic_loss += F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
                 else:
                     # DrQ without average target / RAD with two samples
                     critic_loss = F.mse_loss(Q1_aug_1, target_Q_aug_1) + F.mse_loss(Q2_aug_1, target_Q_aug_1)
@@ -406,8 +405,10 @@ class DRQAgent(object):
 
         # update the probability distribution of data augmentation for DrQ with average target
         if self.data_aug == 7 or self.data_aug == 8:
-            prob_loss = torch.mean(-logprob_aug_1*critic_loss_1.detach())+\
-                        torch.mean(-logprob_aug_2*critic_loss_2.detach())
+            critic_diff_1 = torch.square(Q1_aug_1 - target_Q) + torch.square(Q2_aug_1 - target_Q)
+            critic_diff_2 = torch.square(Q1_aug_2 - target_Q) + torch.square(Q2_aug_2 - target_Q)
+            prob_loss = torch.mean(-logprob_aug_1*critic_diff_1.detach())+\
+                        torch.mean(-logprob_aug_2*critic_diff_2.detach())
             logger.log('train_prop/loss', prob_loss, step)
             self.prob_optimizer.zero_grad()
             prob_loss.backward()

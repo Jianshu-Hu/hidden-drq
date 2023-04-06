@@ -84,19 +84,20 @@ class TrainableCrop():
         if self.data_aug == 7:
             distribution_h = Categorical(torch.nn.functional.softmax(prob_h))
             distribution_w = Categorical(torch.nn.functional.softmax(prob_w))
+            samples_h = distribution_h.sample(sample_shape=[batch_size]).unsqueeze(-1)
+            samples_w = distribution_w.sample(sample_shape=[batch_size]).unsqueeze(-1)
+            top_left_h = samples_h
+            top_left_w = samples_w
+            logprob = distribution_h.log_prob(samples_h) + distribution_w.log_prob(samples_w)
         elif self.data_aug == 8:
             distribution_h = Beta(prob_h[0], prob_h[1])
             distribution_w = Beta(prob_w[0], prob_w[1])
-        samples_h = distribution_h.sample(sample_shape=[batch_size]).unsqueeze(-1)
-        samples_w = distribution_w.sample(sample_shape=[batch_size]).unsqueeze(-1)
-        logprob = distribution_h.log_prob(samples_h) + distribution_w.log_prob(samples_w)
-        src_box = torch.zeros([batch_size, 4, 2])
-        if self.data_aug == 7:
-            top_left_h = samples_h
-            top_left_w = samples_w
-        elif self.data_aug == 8:
+            samples_h = distribution_h.sample(sample_shape=[batch_size]).unsqueeze(-1)
+            samples_w = distribution_w.sample(sample_shape=[batch_size]).unsqueeze(-1)
             top_left_h = (samples_h*(self.image_pad*2+1)).floor()
             top_left_w = (samples_w*(self.image_pad*2+1)).floor()
+            logprob = distribution_h.log_prob(samples_h) + distribution_w.log_prob(samples_w)
+        src_box = torch.zeros([batch_size, 4, 2])
         src_box[:, 0, :] = torch.concat([top_left_h, top_left_w], dim=1)
         src_box[:, 1, :] = torch.concat([top_left_h + self.image_size-1, top_left_w], dim=1)
         src_box[:, 2, :] = torch.concat([top_left_h + self.image_size-1, top_left_w + self.image_size-1], dim=1)
