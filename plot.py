@@ -329,10 +329,8 @@ folders_all = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'drq+avg_target+01
 #               'drq+avg_target+scheduled_07_beta_dist',
 #               'drq+avg_target+scheduled_07_2_beta_dist', 'drq+avg_target+scheduled_1_2_beta_dist']
 folders_42 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+trainable_dist']
-folders_43 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+test_trainable_dist',
-              'drq+avg_target+01_kl+test_trainable_beta_dist',
-              'drq+avg_target+01_kl+trainable_dist',
-              'drq+avg_target+01_kl+trainable_beta_dist']
+folders_43 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+trainable_dist_lr_1e-3',
+              'drq+avg_target+01_kl+trainable_dist_lr_1e-4']
 folders_44 = ['drq+avg_target', 'drq+avg_target+1_kl', 'drq+avg_target+05_kl',
               'drq+avg_target+01_kl']
 folders_45 = ['drq+avg_target', 'drq+avg_target+01_kl', 'drq+avg_target+01_kl+scheduled_07_beta_dist',

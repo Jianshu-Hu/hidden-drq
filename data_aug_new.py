@@ -82,8 +82,8 @@ class TrainableCrop():
         batch_size = images.size()[0]
         images = self.pad(images)
         if self.data_aug == 7:
-            distribution_h = Categorical(torch.nn.functional.softmax(prob_h))
-            distribution_w = Categorical(torch.nn.functional.softmax(prob_w))
+            distribution_h = Categorical(torch.nn.functional.softmax(prob_h, dim=0))
+            distribution_w = Categorical(torch.nn.functional.softmax(prob_w, dim=0))
             samples_h = distribution_h.sample(sample_shape=[batch_size]).unsqueeze(-1)
             samples_w = distribution_w.sample(sample_shape=[batch_size]).unsqueeze(-1)
             top_left_h = samples_h
@@ -97,6 +97,12 @@ class TrainableCrop():
             top_left_h = (samples_h*(self.image_pad*2+1)).floor()
             top_left_w = (samples_w*(self.image_pad*2+1)).floor()
             logprob = distribution_h.log_prob(samples_h) + distribution_w.log_prob(samples_w)
+        elif self.data_aug == 9:
+            distribution_h = Categorical(torch.nn.functional.softmax(prob_h, dim=0))
+            samples_h = distribution_h.sample(sample_shape=[batch_size]).unsqueeze(-1)
+            top_left_h = (samples_h/(self.image_pad*2+1)).floor()
+            top_left_w = samples_h-top_left_h*(self.image_pad*2+1)
+            logprob = distribution_h.log_prob(samples_h)
         src_box = torch.zeros([batch_size, 4, 2])
         src_box[:, 0, :] = torch.concat([top_left_h, top_left_w], dim=1)
         src_box[:, 1, :] = torch.concat([top_left_h + self.image_size-1, top_left_w], dim=1)
@@ -137,7 +143,7 @@ def aug(data_aug, image_pad, obs_shape, degrees, dist_alpha):
     elif data_aug == 6:
         # random rotation with beta distribution
         augmentation = RandomBetaRotation(degrees=degrees, alpha=dist_alpha)
-    elif data_aug == 7 or data_aug == 8:
+    elif data_aug == 7 or data_aug == 8 or data_aug == 9:
         augmentation = TrainableCrop(image_pad, obs_shape[-1], data_aug)
     else:
         augmentation = None
