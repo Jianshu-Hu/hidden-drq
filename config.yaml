@@ -22,7 +22,8 @@ final_dist_alpha: 1.0
 RAD: false
 avg_target: true
 tan_prop: false
-tan_prop_weight: 0.5
+original_tan_prop: false
+tan_prop_weight: 0.1
 
 add_kl_loss: false
 init_beta: 0.1
@@ -81,6 +82,7 @@ agent:
     target_kl: ${target_kl}
     avg_target: ${avg_target}
     critic_tangent_prop: ${tan_prop}
+    critic_original_tangent_prop: ${original_tan_prop}
     critic_tangent_prop_weight: ${tan_prop_weight}
 
 

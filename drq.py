@@ -192,7 +192,8 @@ class DRQAgent(object):
                  init_temperature, lr, actor_update_frequency, critic_tau,
                  critic_target_update_frequency, batch_size, image_pad, data_aug, RAD,
                  degrees, visualize, tag, seed, add_kl_loss, init_beta, add_actor_obs_aug_loss,
-                 update_beta, target_kl, avg_target, critic_tangent_prop, critic_tangent_prop_weight):
+                 update_beta, target_kl, avg_target, critic_tangent_prop, critic_original_tangent_prop,
+                 critic_tangent_prop_weight):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -240,6 +241,7 @@ class DRQAgent(object):
         self.update_beta = update_beta
         self.avg_target = avg_target
         self.critic_tangent_prop = critic_tangent_prop
+        self.original_critic_tangent_prop = critic_original_tangent_prop
         self.critic_tangent_prop_weight = critic_tangent_prop_weight
         if self.add_kl_loss:
             self.init_beta = init_beta
@@ -346,11 +348,7 @@ class DRQAgent(object):
 
         if self.critic_tangent_prop:
             with torch.no_grad():
-                # calculate the expected transformed image and tangent vector
-                # expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_1)
-                # tangent_vector1 = torch.pow(torch.abs(variance_trans_obs), 0.5)
-                # expected_trans_obs, variance_trans_obs = self.tangent_prop_regu.moments_transformed_obs(obs_aug_2)
-                # tangent_vector2 = torch.pow(torch.abs(variance_trans_obs), 0.5)
+                # calculate the tangent vector
                 tangent_vector1 = self.tangent_prop_regu.tangent_vector(obs_aug_1)
                 tangent_vector2 = self.tangent_prop_regu.tangent_vector(obs_aug_2)
             obs_aug_1.requires_grad = True
@@ -378,6 +376,33 @@ class DRQAgent(object):
             tan_loss2 = torch.mean(torch.square(torch.sum((jacobian2 * tangent_vector2), (3, 2, 1))), dim=-1)
 
             tangent_prop_loss = tan_loss1+tan_loss2
+            critic_loss += self.critic_tangent_prop_weight*tangent_prop_loss
+
+            logger.log('train_critic/tangent_prop_loss', tangent_prop_loss, step)
+        elif self.original_critic_tangent_prop:
+            # critic loss
+            target_Q = (target_Q_aug_1 + target_Q_aug_2) / 2
+            Q1_aug_1, Q2_aug_1 = self.critic(obs_aug_1, action)
+            Q1_aug_2, Q2_aug_2 = self.critic(obs_aug_2, action)
+            critic_loss = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
+            critic_loss += F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
+            critic_loss = critic_loss / 2
+            logger.log('train_critic/loss', critic_loss, step)
+
+            with torch.no_grad():
+                tangent_vector = self.tangent_prop_regu.tangent_vector(obs)
+            obs.requires_grad = True
+
+            # add regularization for tangent prop
+            # calculate the Jacobian matrix for non-linear model
+            Q1, Q2 = self.critic(obs, action)
+            Q = torch.min(Q1, Q2)
+            jacobian = torch.autograd.grad(outputs=Q, inputs=obs,
+                                           grad_outputs=torch.ones(Q.size(), device=self.device),
+                                           retain_graph=True, create_graph=True)[0]
+            tan_loss = torch.mean(torch.square(torch.sum((jacobian * tangent_vector), (3, 2, 1))), dim=-1)
+
+            tangent_prop_loss = tan_loss
             critic_loss += self.critic_tangent_prop_weight*tangent_prop_loss
 
             logger.log('train_critic/tangent_prop_loss', tangent_prop_loss, step)
@@ -432,8 +457,11 @@ class DRQAgent(object):
                     logger.log('train_prop/prob_w_' + str(index), self.prob_w[index], step)
             elif self.data_aug == 9:
                 softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
-                for index in range(self.prob_h.size()[0]):
-                    logger.log('train_prop/prob_' + str(index), softmax_prob_h[index], step)
+                for index in range(self.image_pad*2+1):
+                    logger.log('train_prop/prob_h_' + str(index),
+                               softmax_prob_h[self.image_pad+index*(self.image_pad*2+1)], step)
+                    logger.log('train_prop/prob_w_' + str(index),
+                               softmax_prob_h[(self.image_pad*2+1)*self.image_pad+index], step)
 
         self.critic.log(logger, step)
 
