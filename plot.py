@@ -331,7 +331,10 @@ folders_all = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'drq+avg_target+01
 folders_42 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+trainable_dist']
 folders_43 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+trainable_dist_lr_1e-3',
               'drq+avg_target+01_kl+trainable_dist_lr_1e-4',
-              'drq+avg_target+01_kl+trainable_all_dist_lr_1e-3']
+              'drq+avg_target+01_kl+trainable_all_dist_lr_1e-3',
+              'drq+avg_target+01_kl+trainable_minimize_variance_target',
+              'drq+avg_target+01_kl+trainable_minimize_variance_target_lr_1e-4',
+              'drq+avg_target+01_kl+trainable_maximize_target']
 folders_44 = ['drq+avg_target', 'drq+avg_target+1_kl', 'drq+avg_target+05_kl',
               'drq+avg_target+01_kl']
 folders_45 = ['drq+avg_target', 'drq+avg_target+01_kl', 'drq+avg_target+01_kl+scheduled_07_beta_dist',
@@ -344,11 +347,19 @@ folders_47 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop',
               'drq+avg_target+01_kl+05_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop']
 folders_48 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop']
 folders_49 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop',
-              'drq+avg_target+01_kl+05_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop',
-              'drq+avg_target+01_kl+scheduled_08_beta+01_tangent_prop']
+              'drq+avg_target+01_kl+05_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop']
 folders_50 = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'drq+avg_target+01_kl',
               'drq+avg_target+01_kl+scheduled_08_beta_dist', 'drq+avg_target+01_kl+01_tangent_prop',
               'drq+avg_target+01_kl+scheduled_08_beta+01_tangent_prop']
+folders_51 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+scheduled_08_beta_dist',
+              'drq+avg_target+01_kl+01_tangent_prop',
+              'drq+avg_target+01_kl+scheduled_08_beta+01_original_tangent_prop',
+              'drq+avg_target+01_kl+scheduled_08_beta+01_tangent_prop']
+folders_52 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+scheduled_09_beta_dist',
+              'drq+avg_target+01_kl+01_tangent_prop',
+              'drq+avg_target+01_kl+scheduled_09_beta+01_original_tangent_prop',
+              'drq+avg_target+01_kl+scheduled_09_beta+01_tangent_prop']
+# 'drq+avg_target+01_kl+scheduled_08_beta_uniform_next_state+01_tangent_prop'
 
 # plot_several_folders(prefix=prefix_2, folders=folders_more_samples, title='cheetah_run_more_samples')
 # plot_several_folders(prefix=prefix_3, folders=folders_more_samples, title='reacher_hard_more_samples')
@@ -379,6 +390,8 @@ plot_several_folders(prefix=prefix_2, folders=folders_47, title='cheetah_run_tan
 plot_several_folders(prefix=prefix_3, folders=folders_tangent, title='reacher_hard_tangent')
 plot_several_folders(prefix=prefix_7, folders=folders_49, title='walker_run_tangent')
 plot_several_folders(prefix=prefix_9, folders=folders_tangent, title='finger_spin_tangent')
+plot_several_folders(prefix=prefix_7, folders=folders_51, title='walker_run_08beta+tangent')
+plot_several_folders(prefix=prefix_7, folders=folders_52, title='walker_run_09beta+tangent')
 # import torch
 # alpha = 0.8
 # beta = torch.distributions.Beta(alpha, alpha)

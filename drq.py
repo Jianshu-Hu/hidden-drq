@@ -5,6 +5,7 @@ import torch.nn.functional as F
 import copy
 import math
 import kornia
+import torchvision
 
 import replay_buffer
 import utils
@@ -258,7 +259,7 @@ class DRQAgent(object):
             self.prob_h.requires_grad = True
             self.prob_w = (torch.ones(2*image_pad+1)/(2*image_pad+1)).to(self.device)
             self.prob_w.requires_grad = True
-            self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=lr)
+            self.prob_optimizer = torch.optim.Adam([self.prob_h, self.prob_w], lr=0.1 * lr)
         elif self.data_aug == 8:
             # trainable beta distribution for data augmentation
             self.prob_h = torch.tensor([1.0, 1.0]).to(self.device)
@@ -271,7 +272,7 @@ class DRQAgent(object):
             pixel_num = (2*image_pad+1)**2
             self.prob_h = (torch.ones(pixel_num)/pixel_num).to(self.device)
             self.prob_h.requires_grad = True
-            self.prob_optimizer = torch.optim.Adam([self.prob_h], lr=lr)
+            self.prob_optimizer = torch.optim.Adam([self.prob_h], lr=0.1 * lr)
             self.prob_w = None
 
     def train(self, training=True):
@@ -345,6 +346,12 @@ class DRQAgent(object):
                          target_Q=target_Q_aug_1.cpu().numpy(), target_Q_aug=target_Q_aug_2.cpu().numpy(), Y=Y,
                          next_action=next_action_aug_1.cpu().numpy(), next_action_aug=next_action_aug_2.cpu().numpy(),
                          KL=KL.cpu().numpy())
+
+                # record all the Qs for all augmented samples
+                augmented_Q, augmented_target = self.record_all_augmented_Q(obs, action, next_obs, reward, not_done)
+                np.savez(path + '/seed_' + str(self.seed) + '/Qs-' + str(step) + '.npz',
+                         augmented_Q=augmented_Q.cpu().numpy(), augmented_target=augmented_target.cpu().numpy())
+
 
         if self.critic_tangent_prop:
             with torch.no_grad():
@@ -437,10 +444,10 @@ class DRQAgent(object):
 
         # update the probability distribution of data augmentation for DrQ with average target
         if self.data_aug == 7 or self.data_aug == 8 or self.data_aug == 9:
-            critic_diff_1 = torch.square(Q1_aug_1 - target_Q) + torch.square(Q2_aug_1 - target_Q)
-            critic_diff_2 = torch.square(Q1_aug_2 - target_Q) + torch.square(Q2_aug_2 - target_Q)
-            prob_loss = torch.mean(-logprob_aug_1*critic_diff_1.detach())+\
-                        torch.mean(-logprob_aug_2*critic_diff_2.detach())
+            # critic_diff_1 = torch.square(target_Q_aug_1 - target_Q)
+            # critic_diff_2 = torch.square(target_Q_aug_2 - target_Q)
+            prob_loss = torch.mean(-logprob_aug_1*target_Q_aug_1.detach())+\
+                        torch.mean(-logprob_aug_2*target_Q_aug_2.detach())
             logger.log('train_prop/loss', prob_loss, step)
             self.prob_optimizer.zero_grad()
             prob_loss.backward()
@@ -562,4 +569,35 @@ class DRQAgent(object):
         if step % self.critic_target_update_frequency == 0:
             utils.soft_update_params(self.critic, self.critic_target,
                                      self.critic_tau)
+
+    def record_all_augmented_Q(self, obs, action, next_obs, reward, not_done):
+        num_aug = (2*self.image_pad+1)**2
+        augmented_Q = torch.zeros(self.batch_size, num_aug)
+        augmented_target = torch.zeros(self.batch_size, num_aug)
+        pad = nn.Sequential(torch.nn.ReplicationPad2d(self.image_pad))
+        pad_obs = pad(obs)
+        pad_next_obs = pad(next_obs)
+        with torch.no_grad():
+            for i in range(self.image_pad*2+1):
+                for j in range(self.image_pad*2+1):
+                    aug_obs = torchvision.transforms.functional.\
+                        crop(pad_obs, top=i, left=j, height=obs.size()[-1], width=obs.size()[-1])
+                    aug_next_obs= torchvision.transforms.functional.\
+                        crop(pad_next_obs, top=i, left=j, height=obs.size()[-1], width=obs.size()[-1])
+                    aug_Q1, aug_Q2 = self.critic(aug_obs, action)
+                    aug_Q = (aug_Q1+aug_Q2)/2
+                    augmented_Q[:, i*(self.image_pad*2+1)+j] = aug_Q.view(-1)
+
+                    dist_aug = self.actor(aug_next_obs)
+                    next_action_aug = dist_aug.rsample()
+                    log_prob_aug = dist_aug.log_prob(next_action_aug).sum(-1, keepdim=True)
+                    target_Q1, target_Q2 = self.critic_target(aug_next_obs, next_action_aug)
+                    target_V = torch.min(
+                        target_Q1, target_Q2) - self.alpha.detach() * log_prob_aug
+                    target_Q_aug = reward + (not_done * self.discount * target_V)
+                    augmented_target[:, i * (self.image_pad * 2 + 1) + j] = target_Q_aug.view(-1)
+
+        return augmented_Q, augmented_target
+
+
 
