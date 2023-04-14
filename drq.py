@@ -191,8 +191,8 @@ class DRQAgent(object):
     def __init__(self, obs_shape, action_shape, action_range, device,
                  encoder_cfg, critic_cfg, actor_cfg, discount,
                  init_temperature, lr, actor_update_frequency, critic_tau,
-                 critic_target_update_frequency, batch_size, image_pad, data_aug, RAD,
-                 degrees, visualize, tag, seed, add_kl_loss, init_beta, add_actor_obs_aug_loss,
+                 critic_target_update_frequency, batch_size, image_pad, data_aug, RAD, DrAC,
+                 DrAC_regu_weight, degrees, visualize, tag, seed, add_kl_loss, init_beta, add_actor_obs_aug_loss,
                  update_beta, target_kl, avg_target, critic_tangent_prop, critic_original_tangent_prop,
                  critic_tangent_prop_weight):
         self.action_range = action_range
@@ -235,6 +235,8 @@ class DRQAgent(object):
 
         self.mse_loss = nn.MSELoss()
         self.RAD = RAD
+        self.DrAC = DrAC
+        self.DrAC_regu_weight = DrAC_regu_weight
         self.visualize = visualize
         self.tag = tag
         self.seed = seed
@@ -244,7 +246,7 @@ class DRQAgent(object):
         self.critic_tangent_prop = critic_tangent_prop
         self.original_critic_tangent_prop = critic_original_tangent_prop
         self.critic_tangent_prop_weight = critic_tangent_prop_weight
-        if self.add_kl_loss:
+        if self.add_kl_loss or self.DrAC:
             self.init_beta = init_beta
             self.log_beta = torch.tensor(np.log(self.init_beta)).to(self.device)
             self.log_beta.requires_grad = True
@@ -352,7 +354,6 @@ class DRQAgent(object):
                 np.savez(path + '/seed_' + str(self.seed) + '/Qs-' + str(step) + '.npz',
                          augmented_Q=augmented_Q.cpu().numpy(), augmented_target=augmented_target.cpu().numpy())
 
-
         if self.critic_tangent_prop:
             with torch.no_grad():
                 # calculate the tangent vector
@@ -427,6 +428,20 @@ class DRQAgent(object):
                     critic_loss = F.mse_loss(Q1_aug_1, target_Q_aug_1) + F.mse_loss(Q2_aug_1, target_Q_aug_1)
                     critic_loss += F.mse_loss(Q1_aug_2, target_Q_aug_2) + F.mse_loss(Q2_aug_2, target_Q_aug_2)
                 critic_loss = critic_loss/2
+            elif self.DrAC:
+                with torch.no_grad():
+                    dist = self.actor(next_obs)
+                    next_action = dist.rsample()
+                    log_prob = dist.log_prob(next_action).sum(-1, keepdim=True)
+                    target_Q1, target_Q2 = self.critic_target(next_obs, next_action)
+                    target_V = torch.min(target_Q1, target_Q2) - self.alpha.detach() * log_prob
+                    target_Q = reward + (not_done * self.discount * target_V)
+
+                Q1, Q2 = self.critic(obs, action)
+                Q1_aug_1, Q2_aug_1 = self.critic(obs_aug_1, action)
+
+                critic_loss = F.mse_loss(Q1, target_Q)+F.mse_loss(Q2, target_Q)
+                critic_loss += self.DrAC_regu_weight*(F.mse_loss(Q1_aug_1, target_Q)+F.mse_loss(Q2_aug_1, target_Q))
             else:
                 # apply data augmentation
                 current_Q1, current_Q2 = self.critic(obs_aug_1, action)
@@ -473,48 +488,68 @@ class DRQAgent(object):
         self.critic.log(logger, step)
 
     def update_actor_and_alpha(self, obs, obs_aug_1, obs_aug_2, logger, step):
-        # detach conv filters, so we don't update them with the actor loss
-        dist = self.actor(obs_aug_1, detach_encoder=True)
-        action = dist.rsample()
-        log_prob = dist.log_prob(action).sum(-1, keepdim=True)
-        # detach conv filters, so we don't update them with the actor loss
-        actor_Q1, actor_Q2 = self.critic(obs_aug_1, action, detach_encoder=True)
-
-        actor_Q = torch.min(actor_Q1, actor_Q2)
-
-        actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
-
-        if self.add_actor_obs_aug_loss:
-            dist_aug = self.actor(obs_aug_2, detach_encoder=True)
-            action_aug = dist_aug.rsample()
-            log_prob_aug = dist_aug.log_prob(action_aug).sum(-1, keepdim=True)
+        if self.DrAC:
             # detach conv filters, so we don't update them with the actor loss
-            actor_Q1_aug, actor_Q2_aug = self.critic(obs_aug_2, action_aug, detach_encoder=True)
+            dist = self.actor(obs, detach_encoder=True)
+            action = dist.rsample()
+            log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+            # detach conv filters, so we don't update them with the actor loss
+            actor_Q1, actor_Q2 = self.critic(obs, action, detach_encoder=True)
 
-            actor_Q_aug = torch.min(actor_Q1_aug, actor_Q2_aug)
+            actor_Q = torch.min(actor_Q1, actor_Q2)
 
-            actor_loss_aug = (self.alpha.detach() * log_prob_aug - actor_Q_aug).mean()
+            actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
 
-            actor_loss += actor_loss_aug
-
-            actor_loss = actor_loss/2
-        elif self.add_kl_loss:
-            # KL divergence between A(obs_aug_1) and A(obs_aug_2)
+            # KL divergence between A(obs) and A(obs_aug_1)
             with torch.no_grad():
-                mu, std = self.actor.forward_mu_std(obs_aug_1)
-            mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_2, detach_encoder=True)
+                mu, std = self.actor.forward_mu_std(obs)
+            mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_1, detach_encoder=True)
             dist1 = torch.distributions.Normal(torch.tanh(mu), std)
             dist1_aug = torch.distributions.Normal(torch.tanh(mu_aug), std_aug)
 
             KL = torch.mean(kl_divergence(dist1, dist1_aug))
-            # KL = torch.mean(kl_divergence(dist1_aug, dist1))
-            weighted_KL = self.beta.detach()*KL
+            weighted_KL = self.beta.detach() * KL
             logger.log('train_actor/KL_loss', KL, step)
             actor_loss += weighted_KL
+        else:
+            # detach conv filters, so we don't update them with the actor loss
+            dist = self.actor(obs_aug_1, detach_encoder=True)
+            action = dist.rsample()
+            log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+            # detach conv filters, so we don't update them with the actor loss
+            actor_Q1, actor_Q2 = self.critic(obs_aug_1, action, detach_encoder=True)
 
-            # self.actor_optimizer.zero_grad()
-            # weighted_KL.backward()
-            # self.actor_optimizer.step()
+            actor_Q = torch.min(actor_Q1, actor_Q2)
+
+            actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
+
+            if self.add_actor_obs_aug_loss:
+                dist_aug = self.actor(obs_aug_2, detach_encoder=True)
+                action_aug = dist_aug.rsample()
+                log_prob_aug = dist_aug.log_prob(action_aug).sum(-1, keepdim=True)
+                # detach conv filters, so we don't update them with the actor loss
+                actor_Q1_aug, actor_Q2_aug = self.critic(obs_aug_2, action_aug, detach_encoder=True)
+
+                actor_Q_aug = torch.min(actor_Q1_aug, actor_Q2_aug)
+
+                actor_loss_aug = (self.alpha.detach() * log_prob_aug - actor_Q_aug).mean()
+
+                actor_loss += actor_loss_aug
+
+                actor_loss = actor_loss/2
+            elif self.add_kl_loss:
+                # KL divergence between A(obs_aug_1) and A(obs_aug_2)
+                with torch.no_grad():
+                    mu, std = self.actor.forward_mu_std(obs_aug_1)
+                mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_2, detach_encoder=True)
+                dist1 = torch.distributions.Normal(torch.tanh(mu), std)
+                dist1_aug = torch.distributions.Normal(torch.tanh(mu_aug), std_aug)
+
+                KL = torch.mean(kl_divergence(dist1, dist1_aug))
+                # KL = torch.mean(kl_divergence(dist1_aug, dist1))
+                weighted_KL = self.beta.detach()*KL
+                logger.log('train_actor/KL_loss', KL, step)
+                actor_loss += weighted_KL
 
         logger.log('train_actor/loss', actor_loss, step)
         logger.log('train_actor/target_entropy', self.target_entropy, step)

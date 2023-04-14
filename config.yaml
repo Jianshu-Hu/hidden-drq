@@ -21,6 +21,8 @@ final_dist_alpha: 1.0
 
 RAD: false
 avg_target: true
+DrAC: false
+DrAC_regu_weight: 0.2
 tan_prop: false
 original_tan_prop: false
 tan_prop_weight: 0.1
@@ -71,6 +73,8 @@ agent:
     image_pad: ${image_pad}
     data_aug: ${data_aug}
     RAD: ${RAD}
+    DrAC: ${DrAC}
+    DrAC_regu_weight: ${DrAC_regu_weight}
     degrees: ${degrees}
     visualize: ${visualize}
     tag: ${tag}

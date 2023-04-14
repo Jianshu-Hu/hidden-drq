@@ -134,6 +134,74 @@ def plot_percentage(domain, prefix_list, title, action=False, kl=False):
     plt.savefig('../saved_features/saved_tsne_fig/'+domain+'_'+title+'.png')
 
 
+def plot_std_Qs(domain, prefix, seed, title, h=None, w=None):
+    plt.rcParams["figure.figsize"] = (8, 8)
+    fig, axs = plt.subplots(2, 1)
+
+    folder = '../saved_features/' + domain + '/' + prefix + '/'+'seed_'+str(seed)
+    files = os.listdir(folder)
+    std_Q_list = []
+    std_target_Q_list = []
+    for num in range(int(len(files)/2)):
+        file = folder + '/Qs-' + str(5000 * (num+1)) + '.npz'
+        data = np.load(file)
+        aug_Q = data['augmented_Q']
+        aug_target_Q = data['augmented_target']
+
+        # variance
+        Q_std = np.std(aug_Q, -1)
+        mean_Q_std = np.mean(Q_std)
+        target_Q_std = np.std(aug_target_Q, -1)
+        mean_target_Q_std = np.mean(target_Q_std)
+        std_Q_list.append(mean_Q_std)
+        std_target_Q_list.append(mean_target_Q_std)
+
+    axs[0].plot(np.arange(1, len(std_Q_list)+1) * 10000, std_Q_list, label=prefix)
+    axs[1].plot(np.arange(1, len(std_target_Q_list)+1) * 10000, std_target_Q_list, label=prefix)
+    fig.legend(fontsize=6)
+    plt.savefig('../saved_features/saved_tsne_fig/'+domain+'_'+title+'.png')
+
+
+def plot_critic_loss(domain, prefix, seed, title, h=None, w=None):
+    plt.rcParams["figure.figsize"] = (18, 18)
+    if h is None:
+        h = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    if w is None:
+        w = [0, 1, 2, 3, 4, 5, 6, 7, 8]
+    fig, axs = plt.subplots(len(h), len(w))
+
+    folder = '../saved_features/' + domain + '/' + prefix + '/'+'seed_'+str(seed)
+    files = os.listdir(folder)
+    critic_loss_list = []
+    Q_list = []
+    for num in range(int(len(files)/2)):
+        file = folder + '/Qs-' + str(5000 * (num+1)) + '.npz'
+        data = np.load(file)
+        aug_Q = data['augmented_Q']
+        aug_target_Q = data['augmented_target']
+
+        # target
+        # mean_aug_target_Q = np.mean(aug_target_Q, -1, keepdims=True)
+        # critic_loss = np.square(aug_Q-mean_aug_target_Q)
+        # mean_critic_loss = np.mean(critic_loss, 0)
+        # critic_loss_list.append(mean_critic_loss)
+        # Q_list.append(aug_Q.mean(0))
+        Q_list.append(aug_Q[0])
+    # critic_loss_list = np.stack(critic_loss_list)
+    Q_list = np.stack(Q_list)
+
+    for i in range(len(h)):
+        for j in range(len(w)):
+            # axs[i][j].plot(np.arange(1, critic_loss_list.shape[0]+1) * 10000,
+            #                critic_loss_list[:, i*len(w)+j], label=prefix)
+            axs[i][j].plot(np.arange(1, Q_list.shape[0]+1) * 10000,
+                           Q_list[:, i*len(w)+j], label=prefix)
+            # axs[i][j].set_title('mean relative error')
+
+    # fig.legend(fontsize=6)
+    plt.savefig('../saved_features/saved_tsne_fig/'+domain+'_'+title+'.png')
+
+
 # prefix_list = ['sac_cheetah_run_crop', 'RAD_cheetah_run_crop', 'DrQ_cheetah_run_crop',
 #                'DrQ_aug_when_act_cheetah_run_crop', 'DrQ+t_sne+rotation_30']
 # prefix_list_2 = ['sac_reacher_hard_rotation', 'RAD_reacher_hard_rotation', 'DrQ_reacher_hard_rotation',
@@ -212,6 +280,7 @@ prefix_6 = ['reacher_hard+DrQ_crop+visualize+deterministic',
             'reacher_hard+DrQ_alpha_06_rotation+aug_when_act+visualize+deterministic',
             'reacher_hard+DrQ_alpha_08_rotation+aug_when_act+visualize+deterministic']
 prefix_13 = ['walker_run+crop+RAD', 'walker_run+crop+DrQ_not_avg_target']
+prefix_14 = ['walker_run+crop+DrQ_avg_target+01_kl+record_Qs']
 
 # 2.20
 # plot_percentage(domain_1, prefix_1, title='original')
@@ -236,10 +305,12 @@ prefix_13 = ['walker_run+crop+RAD', 'walker_run+crop+DrQ_not_avg_target']
 # plot_percentage(domain_2, prefix_13, title='critic_more_samples', action=True)
 
 
-
-
 # plot_target_Q(regularization, step, prefix)
 
 # regularization = 16
 # plot_pairs(regularization, step, prefix)
 # plot_target_Q(regularization, step, prefix)
+
+# 4.18
+plot_std_Qs(domain_2, prefix_14[0], 3, title='walker_run_aug_Qs_std')
+plot_critic_loss(domain_2, prefix_14[0], 3, title='walker_run_critic_loss')
