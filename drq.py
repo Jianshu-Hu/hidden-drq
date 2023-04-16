@@ -457,33 +457,33 @@ class DRQAgent(object):
             obs_aug_1.grad.zero_()
             obs_aug_2.grad.zero_()
 
-        # update the probability distribution of data augmentation for DrQ with average target
-        if self.data_aug == 7 or self.data_aug == 8 or self.data_aug == 9:
-            # critic_diff_1 = torch.square(target_Q_aug_1 - target_Q)
-            # critic_diff_2 = torch.square(target_Q_aug_2 - target_Q)
-            prob_loss = torch.mean(-logprob_aug_1*target_Q_aug_1.detach())+\
-                        torch.mean(-logprob_aug_2*target_Q_aug_2.detach())
-            logger.log('train_prop/loss', prob_loss, step)
-            self.prob_optimizer.zero_grad()
-            prob_loss.backward()
-            self.prob_optimizer.step()
-            if self.data_aug == 7:
-                softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
-                softmax_prob_w = torch.nn.functional.softmax(self.prob_w, dim=0)
-                for index in range(self.prob_h.size()[0]):
-                    logger.log('train_prop/prob_h_' + str(index), softmax_prob_h[index], step)
-                    logger.log('train_prop/prob_w_' + str(index), softmax_prob_w[index], step)
-            elif self.data_aug == 8:
-                for index in range(self.prob_h.size()[0]):
-                    logger.log('train_prop/prob_h_' + str(index), self.prob_h[index], step)
-                    logger.log('train_prop/prob_w_' + str(index), self.prob_w[index], step)
-            elif self.data_aug == 9:
-                softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
-                for index in range(self.image_pad*2+1):
-                    logger.log('train_prop/prob_h_' + str(index),
-                               softmax_prob_h[self.image_pad+index*(self.image_pad*2+1)], step)
-                    logger.log('train_prop/prob_w_' + str(index),
-                               softmax_prob_h[(self.image_pad*2+1)*self.image_pad+index], step)
+        # update the probability distribution of data augmentation for DrAC
+        if self.DrAC:
+            if self.data_aug == 7 or self.data_aug == 8 or self.data_aug == 9:
+                with torch.no_grad():
+                    critic_error = torch.square(Q1_aug_1 - target_Q)+torch.square(Q2_aug_1 - target_Q)
+                prob_loss = torch.mean(-logprob_aug_1*critic_error)
+                logger.log('train_prop/loss', prob_loss, step)
+                self.prob_optimizer.zero_grad()
+                prob_loss.backward()
+                self.prob_optimizer.step()
+                if self.data_aug == 7:
+                    softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
+                    softmax_prob_w = torch.nn.functional.softmax(self.prob_w, dim=0)
+                    for index in range(self.prob_h.size()[0]):
+                        logger.log('train_prop/prob_h_' + str(index), softmax_prob_h[index], step)
+                        logger.log('train_prop/prob_w_' + str(index), softmax_prob_w[index], step)
+                elif self.data_aug == 8:
+                    for index in range(self.prob_h.size()[0]):
+                        logger.log('train_prop/prob_h_' + str(index), self.prob_h[index], step)
+                        logger.log('train_prop/prob_w_' + str(index), self.prob_w[index], step)
+                elif self.data_aug == 9:
+                    softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
+                    for index in range(self.image_pad*2+1):
+                        logger.log('train_prop/prob_h_' + str(index),
+                                   softmax_prob_h[self.image_pad+index*(self.image_pad*2+1)], step)
+                        logger.log('train_prop/prob_w_' + str(index),
+                                   softmax_prob_h[(self.image_pad*2+1)*self.image_pad+index], step)
 
         self.critic.log(logger, step)
 
