@@ -194,7 +194,8 @@ class DRQAgent(object):
                  critic_target_update_frequency, batch_size, image_pad, data_aug, RAD, DrAC,
                  DrAC_regu_weight, degrees, visualize, tag, seed, add_kl_loss, init_beta, add_actor_obs_aug_loss,
                  update_beta, target_kl, avg_target, critic_tangent_prop, critic_original_tangent_prop,
-                 critic_tangent_prop_weight):
+                 critic_tangent_prop_weight, actor_tangent_prop, actor_original_tangent_prop,
+                 actor_tangent_prop_weight):
         self.action_range = action_range
         self.device = device
         self.discount = discount
@@ -221,6 +222,8 @@ class DRQAgent(object):
 
         # optimizers
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
+        self.actor_optimizer_without_encoder = torch.optim.Adam([{'params': [param for name, param
+                                            in self.actor.named_parameters() if 'encoder' not in name]}], lr=lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=lr)
 
@@ -246,6 +249,9 @@ class DRQAgent(object):
         self.critic_tangent_prop = critic_tangent_prop
         self.original_critic_tangent_prop = critic_original_tangent_prop
         self.critic_tangent_prop_weight = critic_tangent_prop_weight
+        self.actor_tangent_prop = actor_tangent_prop
+        self.original_actor_tangent_prop = actor_original_tangent_prop
+        self.actor_tangent_prop_weight = actor_tangent_prop_weight
         if self.add_kl_loss or self.DrAC:
             self.init_beta = init_beta
             self.log_beta = torch.tensor(np.log(self.init_beta)).to(self.device)
@@ -453,37 +459,43 @@ class DRQAgent(object):
         self.critic_optimizer.zero_grad()
         critic_loss.backward()
         self.critic_optimizer.step()
-        if self.critic_tangent_prop:
-            obs_aug_1.grad.zero_()
-            obs_aug_2.grad.zero_()
+        # if self.critic_tangent_prop or self.original_critic_tangent_prop:
+        #     obs_aug_1.grad.zero_()
+        #     obs_aug_2.grad.zero_()
 
-        # update the probability distribution of data augmentation for DrAC
-        if self.DrAC:
-            if self.data_aug == 7 or self.data_aug == 8 or self.data_aug == 9:
+        # update the probability distribution of data augmentation
+        if self.data_aug == 7 or self.data_aug == 8 or self.data_aug == 9:
+            if self.DrAC:
                 with torch.no_grad():
-                    critic_error = torch.square(Q1_aug_1 - target_Q)+torch.square(Q2_aug_1 - target_Q)
-                prob_loss = torch.mean(-logprob_aug_1*critic_error)
-                logger.log('train_prop/loss', prob_loss, step)
-                self.prob_optimizer.zero_grad()
-                prob_loss.backward()
-                self.prob_optimizer.step()
-                if self.data_aug == 7:
-                    softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
-                    softmax_prob_w = torch.nn.functional.softmax(self.prob_w, dim=0)
-                    for index in range(self.prob_h.size()[0]):
-                        logger.log('train_prop/prob_h_' + str(index), softmax_prob_h[index], step)
-                        logger.log('train_prop/prob_w_' + str(index), softmax_prob_w[index], step)
-                elif self.data_aug == 8:
-                    for index in range(self.prob_h.size()[0]):
-                        logger.log('train_prop/prob_h_' + str(index), self.prob_h[index], step)
-                        logger.log('train_prop/prob_w_' + str(index), self.prob_w[index], step)
-                elif self.data_aug == 9:
-                    softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
-                    for index in range(self.image_pad*2+1):
-                        logger.log('train_prop/prob_h_' + str(index),
-                                   softmax_prob_h[self.image_pad+index*(self.image_pad*2+1)], step)
-                        logger.log('train_prop/prob_w_' + str(index),
-                                   softmax_prob_h[(self.image_pad*2+1)*self.image_pad+index], step)
+                    target_error = torch.square(target_Q_aug_1-target_Q)
+                    # critic_error = torch.square(Q1_aug_1 - target_Q)+torch.square(Q2_aug_1 - target_Q)
+                prob_loss = torch.mean(-logprob_aug_1*target_error)
+            else:
+                with torch.no_grad():
+                    target_error_1 = torch.square(target_Q_aug_1 - target_Q)
+                    target_error_2 = torch.square(target_Q_aug_2 - target_Q)
+                prob_loss = torch.mean(-logprob_aug_1*target_error_1-logprob_aug_2*target_error_2)
+            logger.log('train_prop/loss', prob_loss, step)
+            self.prob_optimizer.zero_grad()
+            prob_loss.backward()
+            self.prob_optimizer.step()
+            if self.data_aug == 7:
+                softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
+                softmax_prob_w = torch.nn.functional.softmax(self.prob_w, dim=0)
+                for index in range(self.prob_h.size()[0]):
+                    logger.log('train_prop/prob_h_' + str(index), softmax_prob_h[index], step)
+                    logger.log('train_prop/prob_w_' + str(index), softmax_prob_w[index], step)
+            elif self.data_aug == 8:
+                for index in range(self.prob_h.size()[0]):
+                    logger.log('train_prop/prob_h_' + str(index), self.prob_h[index], step)
+                    logger.log('train_prop/prob_w_' + str(index), self.prob_w[index], step)
+            elif self.data_aug == 9:
+                softmax_prob_h = torch.nn.functional.softmax(self.prob_h, dim=0)
+                for index in range(self.image_pad*2+1):
+                    logger.log('train_prop/prob_h_' + str(index),
+                               softmax_prob_h[self.image_pad+index*(self.image_pad*2+1)], step)
+                    logger.log('train_prop/prob_w_' + str(index),
+                               softmax_prob_h[(self.image_pad*2+1)*self.image_pad+index], step)
 
         self.critic.log(logger, step)
 
@@ -503,36 +515,38 @@ class DRQAgent(object):
             # KL divergence between A(obs) and A(obs_aug_1)
             with torch.no_grad():
                 mu, std = self.actor.forward_mu_std(obs)
-            mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_1, detach_encoder=True)
-            dist1 = torch.distributions.Normal(torch.tanh(mu), std)
-            dist1_aug = torch.distributions.Normal(torch.tanh(mu_aug), std_aug)
+            mu_aug_1, std_aug_1 = self.actor.forward_mu_std(obs_aug_1, detach_encoder=True)
+            dist_original = torch.distributions.Normal(torch.tanh(mu), std)
+            dist_aug_1 = torch.distributions.Normal(torch.tanh(mu_aug_1), std_aug_1)
 
-            KL = torch.mean(kl_divergence(dist1, dist1_aug))
+            KL = torch.mean(kl_divergence(dist_original, dist_aug_1))
             weighted_KL = self.beta.detach() * KL
             logger.log('train_actor/KL_loss', KL, step)
             actor_loss += weighted_KL
         else:
             # detach conv filters, so we don't update them with the actor loss
-            dist = self.actor(obs_aug_1, detach_encoder=True)
-            action = dist.rsample()
-            log_prob = dist.log_prob(action).sum(-1, keepdim=True)
+            dist_aug_1 = self.actor(obs_aug_1, detach_encoder=True)
+            action_aug_1 = dist_aug_1.rsample()
+            log_prob_aug_1 = dist_aug_1.log_prob(action_aug_1).sum(-1, keepdim=True)
+            # for recording
+            log_prob = log_prob_aug_1
             # detach conv filters, so we don't update them with the actor loss
-            actor_Q1, actor_Q2 = self.critic(obs_aug_1, action, detach_encoder=True)
+            actor_Q1, actor_Q2 = self.critic(obs_aug_1, action_aug_1, detach_encoder=True)
 
             actor_Q = torch.min(actor_Q1, actor_Q2)
 
-            actor_loss = (self.alpha.detach() * log_prob - actor_Q).mean()
+            actor_loss = (self.alpha.detach() * log_prob_aug_1 - actor_Q).mean()
 
             if self.add_actor_obs_aug_loss:
-                dist_aug = self.actor(obs_aug_2, detach_encoder=True)
-                action_aug = dist_aug.rsample()
-                log_prob_aug = dist_aug.log_prob(action_aug).sum(-1, keepdim=True)
+                dist_aug_2 = self.actor(obs_aug_2, detach_encoder=True)
+                action_aug_2 = dist_aug_2.rsample()
+                log_prob_aug_2 = dist_aug_2.log_prob(action_aug_2).sum(-1, keepdim=True)
                 # detach conv filters, so we don't update them with the actor loss
-                actor_Q1_aug, actor_Q2_aug = self.critic(obs_aug_2, action_aug, detach_encoder=True)
+                actor_Q1_aug, actor_Q2_aug = self.critic(obs_aug_2, action_aug_2, detach_encoder=True)
 
                 actor_Q_aug = torch.min(actor_Q1_aug, actor_Q2_aug)
 
-                actor_loss_aug = (self.alpha.detach() * log_prob_aug - actor_Q_aug).mean()
+                actor_loss_aug = (self.alpha.detach() * log_prob_aug_2 - actor_Q_aug).mean()
 
                 actor_loss += actor_loss_aug
 
@@ -540,13 +554,12 @@ class DRQAgent(object):
             elif self.add_kl_loss:
                 # KL divergence between A(obs_aug_1) and A(obs_aug_2)
                 with torch.no_grad():
-                    mu, std = self.actor.forward_mu_std(obs_aug_1)
-                mu_aug, std_aug = self.actor.forward_mu_std(obs_aug_2, detach_encoder=True)
-                dist1 = torch.distributions.Normal(torch.tanh(mu), std)
-                dist1_aug = torch.distributions.Normal(torch.tanh(mu_aug), std_aug)
+                    mu_aug_1, std_aug_1 = self.actor.forward_mu_std(obs_aug_1)
+                mu_aug_2, std_aug_2 = self.actor.forward_mu_std(obs_aug_2, detach_encoder=True)
+                dist_aug_1 = torch.distributions.Normal(torch.tanh(mu_aug_1), std_aug_1)
+                dist_aug_2 = torch.distributions.Normal(torch.tanh(mu_aug_2), std_aug_2)
 
-                KL = torch.mean(kl_divergence(dist1, dist1_aug))
-                # KL = torch.mean(kl_divergence(dist1_aug, dist1))
+                KL = torch.mean(kl_divergence(dist_aug_1, dist_aug_2))
                 weighted_KL = self.beta.detach()*KL
                 logger.log('train_actor/KL_loss', KL, step)
                 actor_loss += weighted_KL
@@ -561,10 +574,54 @@ class DRQAgent(object):
         self.actor_optimizer.step()
         self.actor.log(logger, step)
 
+        if self.actor_tangent_prop or self.original_actor_tangent_prop:
+            # target distribution
+            with torch.no_grad():
+                mu_aug_1, std_aug_1 = self.actor.forward_mu_std(obs_aug_1)
+            dist_aug_1 = torch.distributions.Normal(torch.tanh(mu_aug_1), std_aug_1)
+            if self.actor_tangent_prop:
+                obs_tan = obs_aug_2
+            else:
+                obs_tan = obs
+
+            with torch.no_grad():
+                tangent_vector = self.tangent_prop_regu.tangent_vector(obs_tan)
+            obs_tan.requires_grad = True
+
+            # add regularization for tangent prop
+            # freeze the encoder
+            for name, param in self.actor.named_parameters():
+                if 'encoder' in name:
+                    param.requires_grad = False
+
+            mu_with_grad, std_with_grad = self.actor.forward_mu_std(obs_tan)
+            dist_with_grad = torch.distributions.Normal(torch.tanh(mu_with_grad), std_with_grad)
+
+            KL_tan = kl_divergence(dist_aug_1, dist_with_grad)
+            # calculate the Jacobian matrix for non-linear model
+            jacobian = torch.autograd.grad(outputs=KL_tan, inputs=obs_tan,
+                                           grad_outputs=torch.ones(KL_tan.size(), device=self.device),
+                                           retain_graph=True, create_graph=True)[0]
+
+            tangent_prop_loss = torch.mean(torch.square(torch.sum((jacobian * tangent_vector), (3, 2, 1))),
+                                           dim=-1)
+
+            tan_loss = self.actor_tangent_prop_weight * tangent_prop_loss
+            logger.log('train_actor/tangent_prop_loss', tangent_prop_loss, step)
+
+            # optimize the actor
+            self.actor_optimizer_without_encoder.zero_grad()
+            tan_loss.backward()
+            self.actor_optimizer_without_encoder.step()
+
+            # unfreeze the encoder
+            for name, param in self.actor.named_parameters():
+                if 'encoder' in name:
+                    param.requires_grad = True
+
         # update alpha
         self.log_alpha_optimizer.zero_grad()
-        alpha_loss = (self.alpha *
-                      (-log_prob - self.target_entropy).detach()).mean()
+        alpha_loss = (self.alpha * (-log_prob - self.target_entropy).detach()).mean()
         logger.log('train_alpha/loss', alpha_loss, step)
         logger.log('train_alpha/value', self.alpha, step)
         alpha_loss.backward()

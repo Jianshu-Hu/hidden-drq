@@ -316,6 +316,7 @@ prefix_7 = 'saved_runs/walker_run/'
 prefix_9 = 'saved_runs/finger_spin/'
 prefix_10 = 'saved_runs/hopper_hop/'
 prefix_11 = 'saved_runs/walker_walk/'
+prefix_12 = 'saved_runs/quadruped_run/'
 # 3.28
 folders_more_samples = ['rad', 'drq+not_avg_target', 'drq+avg_target']
 folders_beta_dist = ['drq+avg_target', 'drq+avg_target+07_beta_dist']
@@ -350,7 +351,8 @@ folders_47 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop',
               'drq+avg_target+01_kl+05_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop']
 folders_48 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop']
 folders_49 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop',
-              'drq+avg_target+01_kl+05_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop']
+              'drq+avg_target+01_kl+05_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop',
+              'drq+avg_target+01_kl+01_q_tan+01_a_tan']
 folders_50 = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'drq+avg_target+01_kl',
               'drq+avg_target+01_kl+scheduled_08_beta_dist', 'drq+avg_target+01_kl+01_tangent_prop',
               'drq+avg_target+01_kl+scheduled_08_beta+01_tangent_prop']
@@ -365,10 +367,14 @@ folders_52 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+scheduled_09_beta_di
               'drq+avg_target+01_kl+scheduled_095_beta_dist',
               'drq+avg_target+01_kl+scheduled_095_beta_dist+01_original_tangent_prop',
               'drq+avg_target+01_kl+scheduled_095_beta_dist+01_tangent_prop']
-folders_53 = ['rad', 'drq+avg_target', 'drq+acg_target+01_kl', 'drac', 'drq+avg_target+01_kl+01_tangent_prop']
+folders_53 = ['rad', 'drq+avg_target', 'drq+avg_target+01_kl', 'drac', 'drq+avg_target+01_kl+01_tangent_prop']
 folders_54 = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'drq+avg_target+01_kl', 'drac',
               'drq+avg_target+01_kl+01_tangent_prop']
 folders_55 = ['drq+avg_target+01_kl', 'drac', 'drac+trainable_dist']
+folders_56 = ['drq+avg_target+01_kl', 'drac', 'drac+trainable_dist', 'drac+trainable_dist_target_error',
+              'drq+avg_target+01_kl+trainable_dist_target_error']
+folders_57 = ['rad', 'drq+avg_target', 'drac']
+
 # 'drq+avg_target+01_kl+scheduled_08_beta_uniform_next_state+01_tangent_prop'
 
 # plot_several_folders(prefix=prefix_2, folders=folders_more_samples, title='cheetah_run_more_samples')
@@ -381,6 +387,8 @@ plot_several_folders(prefix=prefix_3, folders=folders_all, title='reacher_hard_a
 plot_several_folders(prefix=prefix_7, folders=folders_all, title='walker_run_all')
 plot_several_folders(prefix=prefix_9, folders=folders_all, title='finger_spin_all')
 plot_several_folders(prefix=prefix_11, folders=folders_53, title='walker_walk_all')
+plot_several_folders(prefix=prefix_10, folders=folders_main, title='hopper_hop_all')
+plot_several_folders(prefix=prefix_12, folders=folders_57, title='quadruped_run_all')
 
 # plot_several_folders(prefix=prefix_2, folders=folders_42, title='cheetah_run_beta_dist')
 # plot_several_folders(prefix=prefix_3, folders=folders_beta_dist, title='reacher_hard_beta_dist')
@@ -389,26 +397,24 @@ plot_several_folders(prefix=prefix_11, folders=folders_53, title='walker_walk_al
 
 # plot_several_folders(prefix=prefix_2, folders=folders_42, title='cheetah_run_beta_dist_new')
 # plot_several_folders(prefix=prefix_3, folders=folders_beta_dist, title='reacher_hard_beta_dist')
-plot_several_folders(prefix=prefix_7, folders=folders_43, title='walker_run_beta_dist_new')
+# plot_several_folders(prefix=prefix_7, folders=folders_43, title='walker_run_beta_dist_new')
 # plot_several_folders(prefix=prefix_9, folders=folders_beta_dist, title='finger_spin_beta_dist')
 
-plot_several_folders(prefix=prefix_2, folders=folders_46, title='cheetah_run_kl')
-plot_several_folders(prefix=prefix_3, folders=folders_44, title='reacher_hard_kl')
-plot_several_folders(prefix=prefix_7, folders=folders_45, title='walker_run_kl')
-plot_several_folders(prefix=prefix_9, folders=folders_kl, title='finger_spin_kl')
+# plot_several_folders(prefix=prefix_2, folders=folders_46, title='cheetah_run_kl')
+# plot_several_folders(prefix=prefix_3, folders=folders_44, title='reacher_hard_kl')
+# plot_several_folders(prefix=prefix_7, folders=folders_45, title='walker_run_kl')
+# plot_several_folders(prefix=prefix_9, folders=folders_kl, title='finger_spin_kl')
 
-plot_several_folders(prefix=prefix_2, folders=folders_47, title='cheetah_run_tangent')
-plot_several_folders(prefix=prefix_3, folders=folders_tangent, title='reacher_hard_tangent')
+# plot_several_folders(prefix=prefix_2, folders=folders_47, title='cheetah_run_tangent')
+# plot_several_folders(prefix=prefix_3, folders=folders_tangent, title='reacher_hard_tangent')
 plot_several_folders(prefix=prefix_7, folders=folders_49, title='walker_run_tangent')
-plot_several_folders(prefix=prefix_9, folders=folders_tangent, title='finger_spin_tangent')
-plot_several_folders(prefix=prefix_7, folders=folders_51, title='walker_run_08beta+tangent')
-plot_several_folders(prefix=prefix_7, folders=folders_52, title='walker_run_09beta+tangent')
+# plot_several_folders(prefix=prefix_9, folders=folders_tangent, title='finger_spin_tangent')
+# plot_several_folders(prefix=prefix_7, folders=folders_51, title='walker_run_08beta+tangent')
+# plot_several_folders(prefix=prefix_7, folders=folders_52, title='walker_run_09beta+tangent')
 
-plot_several_folders(prefix=prefix_10, folders=folders_main, title='hopper_hop_all')
-
-plot_several_folders(prefix=prefix_7, folders=folders_55, title='walker_run_drac')
-plot_several_folders(prefix=prefix_3, folders=folders_55, title='reacher_hard_drac')
-plot_several_folders(prefix=prefix_9, folders=folders_55, title='finger_spin_drac')
+# plot_several_folders(prefix=prefix_7, folders=folders_56, title='walker_run_drac')
+# plot_several_folders(prefix=prefix_3, folders=folders_55, title='reacher_hard_drac')
+# plot_several_folders(prefix=prefix_9, folders=folders_55, title='finger_spin_drac')
 # import torch
 # alpha = 0.8
 # beta = torch.distributions.Beta(alpha, alpha)

@@ -23,9 +23,12 @@ RAD: false
 avg_target: true
 DrAC: false
 DrAC_regu_weight: 0.2
-tan_prop: false
-original_tan_prop: false
-tan_prop_weight: 0.1
+q_tan_prop: false
+a_tan_prop: false
+original_q_tan_prop: false
+original_a_tan_prop: false
+q_tan_prop_weight: 0.1
+a_tan_prop_weight: 0.1
 
 add_kl_loss: false
 init_beta: 0.1
@@ -85,9 +88,12 @@ agent:
     update_beta: ${update_beta}
     target_kl: ${target_kl}
     avg_target: ${avg_target}
-    critic_tangent_prop: ${tan_prop}
-    critic_original_tangent_prop: ${original_tan_prop}
-    critic_tangent_prop_weight: ${tan_prop_weight}
+    critic_tangent_prop: ${q_tan_prop}
+    critic_original_tangent_prop: ${original_q_tan_prop}
+    critic_tangent_prop_weight: ${q_tan_prop_weight}
+    actor_tangent_prop: ${a_tan_prop}
+    actor_original_tangent_prop: ${original_a_tan_prop}
+    actor_tangent_prop_weight: ${a_tan_prop_weight}
 
 
 critic:
