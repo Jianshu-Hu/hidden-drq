@@ -317,6 +317,9 @@ prefix_9 = 'saved_runs/finger_spin/'
 prefix_10 = 'saved_runs/hopper_hop/'
 prefix_11 = 'saved_runs/walker_walk/'
 prefix_12 = 'saved_runs/quadruped_run/'
+prefix_13 = 'saved_runs/finger_turn_hard/'
+prefix_14 = 'saved_runs/reacher_easy/'
+prefix_15 = 'saved_runs/cartpole_swingup_sparse/'
 # 3.28
 folders_more_samples = ['rad', 'drq+not_avg_target', 'drq+avg_target']
 folders_beta_dist = ['drq+avg_target', 'drq+avg_target+07_beta_dist']
@@ -324,7 +327,7 @@ folders_kl = ['drq+avg_target', 'drq+avg_target+01_kl']
 folders_tangent = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop']
 folders_all = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'drq+avg_target+01_kl', 'drac',
                'drq+avg_target+01_kl+01_tangent_prop']
-folders_main = ['drq+avg_target', 'drq+avg_target+01_kl+01_tangent_prop']
+folders_main = ['rad', 'drq+avg_target', 'drac', 'drq+avg_target+01_kl+01_tangent_prop']
 
 
 # folders_42 = ['drq+avg_target', 'drq+avg_target+09_beta_dist', 'drq+avg_target+08_beta_dist',
@@ -352,7 +355,8 @@ folders_47 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop',
 folders_48 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop']
 folders_49 = ['drq+avg_target+01_kl', 'drq+avg_target+01_kl+1_tangent_prop',
               'drq+avg_target+01_kl+05_tangent_prop', 'drq+avg_target+01_kl+01_tangent_prop',
-              'drq+avg_target+01_kl+01_q_tan+01_a_tan']
+              'drq+avg_target+01_kl+01_q_tan+01_a_tan', 'drq+avg_target+01_kl+01_q_tan+005_a_tan',
+              'drq+avg_target+01_kl+01_q_tan+001_a_tan']
 folders_50 = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'drq+avg_target+01_kl',
               'drq+avg_target+01_kl+scheduled_08_beta_dist', 'drq+avg_target+01_kl+01_tangent_prop',
               'drq+avg_target+01_kl+scheduled_08_beta+01_tangent_prop']
@@ -373,7 +377,9 @@ folders_54 = ['rad', 'drq+not_avg_target', 'drq+avg_target', 'drq+avg_target+01_
 folders_55 = ['drq+avg_target+01_kl', 'drac', 'drac+trainable_dist']
 folders_56 = ['drq+avg_target+01_kl', 'drac', 'drac+trainable_dist', 'drac+trainable_dist_target_error',
               'drq+avg_target+01_kl+trainable_dist_target_error']
-folders_57 = ['rad', 'drq+avg_target', 'drac']
+folders_57 = ['rad', 'drq+avg_target', 'drac', 'drq+avg_target+01_kl+01_q_tan']
+folders_58 = ['rad', 'drq+avg_target', 'drac', 'drq+avg_target+01_kl+01_q_tan',
+              'drq+avg_target+01_kl+01_q_tan+longer_train']
 
 # 'drq+avg_target+01_kl+scheduled_08_beta_uniform_next_state+01_tangent_prop'
 
@@ -382,13 +388,18 @@ folders_57 = ['rad', 'drq+avg_target', 'drac']
 # plot_several_folders(prefix=prefix_7, folders=folders_more_samples, title='walker_run_more_samples')
 # plot_several_folders(prefix=prefix_9, folders=folders_more_samples, title='finger_spin_more_samples')
 
-plot_several_folders(prefix=prefix_2, folders=folders_all, title='cheetah_run_all')
-plot_several_folders(prefix=prefix_3, folders=folders_all, title='reacher_hard_all')
-plot_several_folders(prefix=prefix_7, folders=folders_all, title='walker_run_all')
+# plot_several_folders(prefix=prefix_10, folders=folders_main, title='hopper_hop_all')
 plot_several_folders(prefix=prefix_9, folders=folders_all, title='finger_spin_all')
+plot_several_folders(prefix=prefix_14, folders=folders_57, title='reacher_easy_all')
+plot_several_folders(prefix=prefix_3, folders=folders_all, title='reacher_hard_all')
+
+plot_several_folders(prefix=prefix_2, folders=folders_all, title='cheetah_run_all')
 plot_several_folders(prefix=prefix_11, folders=folders_53, title='walker_walk_all')
-plot_several_folders(prefix=prefix_10, folders=folders_main, title='hopper_hop_all')
-plot_several_folders(prefix=prefix_12, folders=folders_57, title='quadruped_run_all')
+plot_several_folders(prefix=prefix_15, folders=folders_57, title='cartpole_swingup_sparse_all')
+
+plot_several_folders(prefix=prefix_7, folders=folders_all, title='walker_run_all')
+plot_several_folders(prefix=prefix_13, folders=folders_57, title='finger_turn_hard_all')
+plot_several_folders(prefix=prefix_12, folders=folders_58, title='quadruped_run_all')
 
 # plot_several_folders(prefix=prefix_2, folders=folders_42, title='cheetah_run_beta_dist')
 # plot_several_folders(prefix=prefix_3, folders=folders_beta_dist, title='reacher_hard_beta_dist')

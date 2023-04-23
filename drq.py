@@ -222,8 +222,6 @@ class DRQAgent(object):
 
         # optimizers
         self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=lr)
-        self.actor_optimizer_without_encoder = torch.optim.Adam([{'params': [param for name, param
-                                            in self.actor.named_parameters() if 'encoder' not in name]}], lr=lr)
         self.critic_optimizer = torch.optim.Adam(self.critic.parameters(), lr=lr)
         self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=lr)
 
@@ -564,16 +562,6 @@ class DRQAgent(object):
                 logger.log('train_actor/KL_loss', KL, step)
                 actor_loss += weighted_KL
 
-        logger.log('train_actor/loss', actor_loss, step)
-        logger.log('train_actor/target_entropy', self.target_entropy, step)
-        logger.log('train_actor/entropy', -log_prob.mean(), step)
-
-        # optimize the actor
-        self.actor_optimizer.zero_grad()
-        actor_loss.backward()
-        self.actor_optimizer.step()
-        self.actor.log(logger, step)
-
         if self.actor_tangent_prop or self.original_actor_tangent_prop:
             # target distribution
             with torch.no_grad():
@@ -589,11 +577,6 @@ class DRQAgent(object):
             obs_tan.requires_grad = True
 
             # add regularization for tangent prop
-            # freeze the encoder
-            for name, param in self.actor.named_parameters():
-                if 'encoder' in name:
-                    param.requires_grad = False
-
             mu_with_grad, std_with_grad = self.actor.forward_mu_std(obs_tan)
             dist_with_grad = torch.distributions.Normal(torch.tanh(mu_with_grad), std_with_grad)
 
@@ -606,18 +589,18 @@ class DRQAgent(object):
             tangent_prop_loss = torch.mean(torch.square(torch.sum((jacobian * tangent_vector), (3, 2, 1))),
                                            dim=-1)
 
-            tan_loss = self.actor_tangent_prop_weight * tangent_prop_loss
+            actor_loss += self.actor_tangent_prop_weight * tangent_prop_loss
             logger.log('train_actor/tangent_prop_loss', tangent_prop_loss, step)
 
-            # optimize the actor
-            self.actor_optimizer_without_encoder.zero_grad()
-            tan_loss.backward()
-            self.actor_optimizer_without_encoder.step()
+        logger.log('train_actor/loss', actor_loss, step)
+        logger.log('train_actor/target_entropy', self.target_entropy, step)
+        logger.log('train_actor/entropy', -log_prob.mean(), step)
 
-            # unfreeze the encoder
-            for name, param in self.actor.named_parameters():
-                if 'encoder' in name:
-                    param.requires_grad = True
+        # optimize the actor
+        self.actor_optimizer.zero_grad()
+        actor_loss.backward()
+        self.actor_optimizer.step()
+        self.actor.log(logger, step)
 
         # update alpha
         self.log_alpha_optimizer.zero_grad()
