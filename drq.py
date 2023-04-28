@@ -135,6 +135,22 @@ class Actor(nn.Module):
 
         return mu, std
 
+    def forward_mu_std_from_latent(self, latent):
+        out = self.encoder.head(latent)
+        if not self.encoder.output_logits:
+            obs = torch.tanh(out)
+
+        mu, log_std = self.trunk(obs).chunk(2, dim=-1)
+
+        # constrain log_std inside [log_std_min, log_std_max]
+        log_std = torch.tanh(log_std)
+        log_std_min, log_std_max = self.log_std_bounds
+        log_std = log_std_min + 0.5 * (log_std_max - log_std_min) * (log_std +
+                                                                     1)
+        std = log_std.exp()
+
+        return mu, std
+
     def log(self, logger, step):
         for k, v in self.outputs.items():
             logger.log_histogram(f'train_actor/{k}_hist', v, step)
@@ -419,20 +435,7 @@ class DRQAgent(object):
 
             logger.log('train_critic/tangent_prop_loss', tangent_prop_loss, step)
         else:
-            if not self.RAD:
-                Q1_aug_1, Q2_aug_1 = self.critic(obs_aug_1, action)
-                Q1_aug_2, Q2_aug_2 = self.critic(obs_aug_2, action)
-                if self.avg_target:
-                    # DrQ
-                    target_Q = (target_Q_aug_1 + target_Q_aug_2) / 2
-                    critic_loss = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
-                    critic_loss += F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
-                else:
-                    # DrQ without average target / RAD with two samples
-                    critic_loss = F.mse_loss(Q1_aug_1, target_Q_aug_1) + F.mse_loss(Q2_aug_1, target_Q_aug_1)
-                    critic_loss += F.mse_loss(Q1_aug_2, target_Q_aug_2) + F.mse_loss(Q2_aug_2, target_Q_aug_2)
-                critic_loss = critic_loss/2
-            elif self.DrAC:
+            if self.DrAC:
                 with torch.no_grad():
                     dist = self.actor(next_obs)
                     next_action = dist.rsample()
@@ -446,6 +449,20 @@ class DRQAgent(object):
 
                 critic_loss = F.mse_loss(Q1, target_Q)+F.mse_loss(Q2, target_Q)
                 critic_loss += self.DrAC_regu_weight*(F.mse_loss(Q1_aug_1, target_Q)+F.mse_loss(Q2_aug_1, target_Q))
+                critic_loss = critic_loss/2
+            elif not self.RAD:
+                Q1_aug_1, Q2_aug_1 = self.critic(obs_aug_1, action)
+                Q1_aug_2, Q2_aug_2 = self.critic(obs_aug_2, action)
+                if self.avg_target:
+                    # DrQ
+                    target_Q = (target_Q_aug_1 + target_Q_aug_2) / 2
+                    critic_loss = F.mse_loss(Q1_aug_1, target_Q) + F.mse_loss(Q2_aug_1, target_Q)
+                    critic_loss += F.mse_loss(Q1_aug_2, target_Q) + F.mse_loss(Q2_aug_2, target_Q)
+                else:
+                    # DrQ without average target / RAD with two samples
+                    critic_loss = F.mse_loss(Q1_aug_1, target_Q_aug_1) + F.mse_loss(Q2_aug_1, target_Q_aug_1)
+                    critic_loss += F.mse_loss(Q1_aug_2, target_Q_aug_2) + F.mse_loss(Q2_aug_2, target_Q_aug_2)
+                critic_loss = critic_loss/2
             else:
                 # apply data augmentation
                 current_Q1, current_Q2 = self.critic(obs_aug_1, action)
@@ -574,19 +591,22 @@ class DRQAgent(object):
 
             with torch.no_grad():
                 tangent_vector = self.tangent_prop_regu.tangent_vector(obs_tan)
-            obs_tan.requires_grad = True
+                latent_obs = self.actor.encoder.forward_conv(obs_tan)
+                latent_aug_obs = self.actor.encoder.forward_conv(obs_tan+0.1*tangent_vector)
+                latent_tangent_vector = latent_aug_obs-latent_obs
+            latent_obs.requires_grad = True
 
             # add regularization for tangent prop
-            mu_with_grad, std_with_grad = self.actor.forward_mu_std(obs_tan)
+            mu_with_grad, std_with_grad = self.actor.forward_mu_std_from_latent(latent_obs)
             dist_with_grad = torch.distributions.Normal(torch.tanh(mu_with_grad), std_with_grad)
 
             KL_tan = kl_divergence(dist_aug_1, dist_with_grad)
             # calculate the Jacobian matrix for non-linear model
-            jacobian = torch.autograd.grad(outputs=KL_tan, inputs=obs_tan,
+            jacobian = torch.autograd.grad(outputs=KL_tan, inputs=latent_obs,
                                            grad_outputs=torch.ones(KL_tan.size(), device=self.device),
                                            retain_graph=True, create_graph=True)[0]
 
-            tangent_prop_loss = torch.mean(torch.square(torch.sum((jacobian * tangent_vector), (3, 2, 1))),
+            tangent_prop_loss = torch.mean(torch.square(torch.sum(jacobian * latent_tangent_vector, -1)),
                                            dim=-1)
 
             actor_loss += self.actor_tangent_prop_weight * tangent_prop_loss
@@ -657,7 +677,7 @@ class DRQAgent(object):
                 for j in range(self.image_pad*2+1):
                     aug_obs = torchvision.transforms.functional.\
                         crop(pad_obs, top=i, left=j, height=obs.size()[-1], width=obs.size()[-1])
-                    aug_next_obs= torchvision.transforms.functional.\
+                    aug_next_obs = torchvision.transforms.functional.\
                         crop(pad_next_obs, top=i, left=j, height=obs.size()[-1], width=obs.size()[-1])
                     aug_Q1, aug_Q2 = self.critic(aug_obs, action)
                     aug_Q = (aug_Q1+aug_Q2)/2
